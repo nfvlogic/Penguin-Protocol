@@ -1,4 +1,4 @@
-# LinuxIP - Linux practice shell for the Horizon team
+# LinuxIP - Linux practice shell 
 
 Windows: double-click `LinuxIP.bat` (or run `py -3 linux_13.4.py`).
 macOS/Linux: double-click `LinuxIP.command` (or run `python3 linux_13.4.py`). If macOS blocks it, right-click > Open once. Python 3.9+, standard library only.
