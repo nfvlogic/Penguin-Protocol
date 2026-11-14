@@ -208,7 +208,7 @@ class NetworkCommands:
         from .shell import ALIASES, BUILTINS
         out = []
         for a in args:
-            if a in ALIASES and a not in ("levels", "level", "logout", "pip3"):
+            if a in ALIASES and a not in ("levels", "logout", "pip3"):
                 out.append(f"{a} is aliased to `{' '.join(ALIASES[a])}'")
             elif a in BUILTINS:
                 out.append(f"{a} is a shell builtin")

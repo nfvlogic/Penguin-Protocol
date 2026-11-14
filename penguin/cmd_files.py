@@ -633,7 +633,7 @@ class FileCommands:
                 [q for q in self.fs.walk(p) if self.fs.isdir(q)][::-1] + [p]
             for f in folders:
                 size = 4096 + sum(4096 if k.endswith("/") else -(-len(v) // 4096) * 4096
-                                  for k, v in self.fs.d.items() if k.startswith(f + "/"))
+                                  for k, v in self.fs.d.items() if k.startswith(f + "/") and k != f + "/")
                 shown = n if f == p else n.rstrip("/") + f[len(p):]
                 rows.append(f"{human(size) if 'h' in o else size // 1024}\t{shown}")
         return "\n".join(rows)

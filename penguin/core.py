@@ -4,16 +4,18 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SAVE_FILE = os.environ.get("LINUXIP_SAVE") or os.path.join(ROOT, "linuxip_save.json")
+SAVE_FILE = os.environ.get("PENGUIN_SAVE") or os.path.join(ROOT, "penguin_save.json")
+LEGACY_SAVE = os.path.join(ROOT, "linuxip_save.json")   # progress saved before the game was renamed
 
-USER, HOST, MY_IP = "analyst", "linuxip", "10.20.30.47"
+VERSION = "6.1"
+USER, HOST, MY_IP = "analyst", "penguin", "10.20.30.47"
 HOME = "/home/analyst"
 TOKEN = "atl-4821"
 API = "http://atlas-api"
 NOW = "Thu Nov 12 09:00:01 CET 2026"
 
 HOSTS = """127.0.0.1     localhost
-10.20.30.47   linuxip
+10.20.30.47   penguin
 10.20.30.1    gateway
 10.20.30.11   atlas-db-01
 10.20.30.12   atlas-db-02

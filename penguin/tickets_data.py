@@ -21,6 +21,7 @@ echo "Pre-deploy check finished: OK\""""
 
 # ---------------------------------------------------------------- generated files
 def gen_app_log():
+    """The classic log. The failing endpoint can be swapped later (see variants.py)."""
     out = []
     for i in range(1, 161):
         t = f"08:{i // 3:02d}:{(i * 7) % 60:02d}"
@@ -36,33 +37,33 @@ def gen_app_log():
     return "\n".join(out)
 
 
-def gen_deploy_log():
-    lines = ["00:00 deployed version=v1.7.0 (previous release)"]
+def gen_deploy_log(version="v1.8.3", previous="v1.7.0"):
+    lines = [f"00:00 deployed version={previous} (previous release)"]
     lines += [f"{i * 6 // 60:02d}:{i * 6 % 60:02d} INFO health check ok" for i in range(1, 239)]
-    return "\n".join(lines + ["23:59 deployed version=v1.8.3"])
+    return "\n".join(lines + [f"23:59 deployed version={version}"])
 
 
-def gen_test_report():
+def gen_test_report(failed=6, xfailed=3, rng=None):
     names = ["gate_approval", "requestor_role", "launch_date", "sso_login", "project_list",
              "trademark_bu", "scope_length", "date_format", "permissions", "audit_log"]
-    status = ["FAILED"] * 6 + ["XFAILED"] * 3 + ["PASSED"] * 31
-    random.Random(4).shuffle(status)
+    status = ["FAILED"] * failed + ["XFAILED"] * xfailed + ["PASSED"] * (40 - failed - xfailed)
+    (rng or random.Random(4)).shuffle(status)
     lines = ["============ test session starts ============", "collected 40 items", ""]
     lines += [f"tests/test_{names[i % 10]}.py::test_case_{i + 1:02d} {st}" for i, st in enumerate(status)]
     return "\n".join(lines + ["", "====== summary hidden: count the results yourself ======"])
 
 
-def gen_migrations():
+def gen_migrations(dup="0038", rng=None):
     names = ["initial_schema", "add_projects", "add_users", "add_roles", "add_gates"]
-    rows = [f"{i:04d} {names[i % 5]}_{i}" for i in range(1, 42)] + ["0038 add_trademark_bu_field"]
-    random.Random(8).shuffle(rows)
+    rows = [f"{i:04d} {names[i % 5]}_{i}" for i in range(1, 42)] + [f"{dup} add_trademark_bu_field"]
+    (rng or random.Random(8)).shuffle(rows)
     return "\n".join(rows)
 
 
-def gen_access():
-    rows = ([("/api/health", 200)] * 20 + [("/api/projects", 200)] * 9 + [("/api/requests", 500)] * 8 +
-            [("/api/projects", 500)] * 3 + [("/api/gates", 500)] * 5 + [("/login", 302)] * 6)
-    random.Random(11).shuffle(rows)
+def gen_access(broken="/api/requests", others=("/api/projects", "/api/gates"), rng=None):
+    rows = ([("/api/health", 200)] * 20 + [("/api/projects", 200)] * 9 + [(broken, 500)] * 8 +
+            [(others[0], 500)] * 3 + [(others[1], 500)] * 5 + [("/login", 302)] * 6)
+    (rng or random.Random(11)).shuffle(rows)
     return "\n".join(f"10.20.30.{5 + i % 7} GET {p} {s} {12 + i % 40}ms" for i, (p, s) in enumerate(rows))
 
 
@@ -92,21 +93,26 @@ def gen_auth_log():
     random.Random(21).shuffle(events)
     events.insert(10, ("Accepted", "analyst", "10.20.30.47"))
     events.append(("Accepted", "svc_atlas", "10.20.30.66"))
-    return "\n".join(f"Nov 12 01:{i * 2 // 60:02d}:{i * 2 % 60:02d} linuxip sshd[{2400 + i}]: {k} password for {u} from {ip}"
+    return "\n".join(f"Nov 12 01:{i * 2 // 60:02d}:{i * 2 % 60:02d} penguin sshd[{2400 + i}]: {k} password for {u} from {ip}"
                      for i, (k, u, ip) in enumerate(events))
 
 
-def gen_sprint():
-    rng = random.Random(9)
-    comps = ["workflow"] * 11 + ["workflow-ui"] * 6 + ["sso"] * 9 + ["requests"] * 10 + ["reports"] * 8
+def gen_sprint(workflow=11, biggest=21, rng=None):
+    rng = rng or random.Random(9)
+    comps = ["workflow"] * workflow + ["workflow-ui"] * 6 + ["sso"] * 9 + ["requests"] * 10 + ["reports"] * 8
     rng.shuffle(comps)
     rows = ["ticket,component,points"]
     for i, comp in enumerate(comps):
-        rows.append(f"ATL-{1200 + i},{comp},{21 if i == 23 else rng.choice([1, 2, 3, 5, 8, 13])}")
+        rows.append(f"ATL-{1200 + i},{comp},{biggest if i == 23 else rng.choice([1, 2, 3, 5, 8, 13])}")
     return "\n".join(rows)
 
 
 WORKFLOW_LINES = [l for l in gen_sprint().splitlines() if ",workflow," in l]
+
+
+def wf_check(lines):
+    """Goal of the sprint ticket: workflow.csv holds exactly these lines."""
+    return lambda g: [l.rstrip() for l in g.fs.d.get(HOME + "/workflow.csv", "").strip().split("\n")] == lines
 
 
 # ---------------------------------------------------------------- setup functions (git, venv)
@@ -206,9 +212,9 @@ NUDGES = {
 
 
 # ---------------------------------------------------------------- data for the text-tools and server tickets
-def gen_export():
+def gen_export(rng=None):
     """A ticket export from Windows: every line ends with \\r\\n."""
-    rng = random.Random(3)
+    rng = rng or random.Random(3)
     owners = ["ana", "bruno", "carla", "dev", "elena"]
     rows = ["id,owner,status"]
     for i in range(30):
@@ -224,10 +230,10 @@ TST_CONFIG = 'DB_HOST = "atlas-db-02"\nDB_URL = "mysql+pymysql://atlas@atlas-db-
 TST_CONFIG_NEW = TST_CONFIG.replace("atlas-db-02", "atlas-db-new")
 
 
-def gen_traffic():
-    rng = random.Random(21)
-    rows = ([("10.20.30.66", "/api/projects/NPI-999", 404)] * 7 + [("10.20.30.41", "/api/gates/77", 404)] * 3 +
-            [("10.20.30.12", "/api/users/5", 404)] * 2 + [("10.20.30.66", "/api/health", 200)] * 2 +
+def gen_traffic(rng=None, top="10.20.30.66"):
+    rng = rng or random.Random(21)
+    rows = ([(top, "/api/projects/NPI-999", 404)] * 7 + [("10.20.30.41", "/api/gates/77", 404)] * 3 +
+            [("10.20.30.12", "/api/users/5", 404)] * 2 + [(top, "/api/health", 200)] * 2 +
             [(f"10.20.30.{5 + i % 6}", "/api/projects/404", 200) for i in range(3)] +
             [(f"10.20.30.{5 + i % 7}", "/api/health", 200) for i in range(22)] +
             [(f"10.20.30.{5 + i % 4}", "/api/requests", 500) for i in range(4)])
@@ -240,8 +246,8 @@ TRAFFIC_404 = str(sum(l.split()[3] == "404" for l in TRAFFIC))
 TRAFFIC_SUM = str(sum(int(l.split()[4][:-2]) for l in TRAFFIC if l.startswith("10.20.30.66 ")))
 
 
-def gen_costs():
-    rng = random.Random(5)
+def gen_costs(rng=None):
+    rng = rng or random.Random(5)
     rows = ["service,environment,eur"]
     for svc in ("compute", "database", "storage", "network", "monitoring"):
         for env in ("dev", "tst", "prd"):

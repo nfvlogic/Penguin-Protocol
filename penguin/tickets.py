@@ -4,7 +4,7 @@ Each ticket has either an `answer` (submit it), `checks` (completes by itself) o
 `parts` (several steps; a step goal is an answer string/tuple or a check function).
 
 RULE FOR CARDS: examples ("e.g. ...") must use OTHER files, folders and hosts than the
-ticket, and must never contain an answer. tests/test_linuxip.py checks this automatically.
+ticket, and must never contain an answer. tests/test_penguin.py checks this automatically.
 """
 from .cmd_dev import ghash
 from .cmd_sys import tar_members
@@ -878,6 +878,7 @@ LEVELS = [
                                                       "first error: 03:12"])(g))],
          hint=f'curl -H "Authorization: Bearer {TOKEN}" {API}/api/incidents | grep critical | grep open ; '
               'grep ERROR incident/2026/11/12/atlas-db-03.log | head -n 1 ; '
-              'echo "incident: INC-9003" > postmortem.txt ; then >> for the other 2 lines'),
+              'echo "incident: INC-9003" > postmortem.txt ; echo "host: atlas-db-03" >> postmortem.txt ; '
+              'echo "first error: 03:12" >> postmortem.txt'),
 ]
 TOTAL = len(LEVELS)

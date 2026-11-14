@@ -102,7 +102,7 @@ class ShellCommands:
         return out[:-1] if out.endswith("\n") else out
 
     def cmd_alias(self, args, stdin):
-        real = {k: v for k, v in self.aliases.items() if k not in ("levels", "level", "logout", "pip3")}
+        real = {k: v for k, v in self.aliases.items() if k not in ("levels", "logout", "pip3")}
         if not args:
             return "\n".join(f"alias {k}='{' '.join(v)}'" for k, v in sorted(real.items()))
         out = []

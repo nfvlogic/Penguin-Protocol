@@ -28,11 +28,11 @@ class FS:
                   "/proc/": "", "/sys/": "", "/lib/": "",
                   "/etc/passwd": passwd, "/etc/group": "root:x:0:\nusers:x:100:analyst\nanalyst:x:1000:",
                   "/etc/shadow": "root:!:20000:0:99999:7:::\nanalyst:$y$j9T$redacted:20000:0:99999:7:::",
-                  "/etc/hostname": "linuxip", "/etc/os-release": 'PRETTY_NAME="Ubuntu 24.04.1 LTS"\nNAME="Ubuntu"\nVERSION_ID="24.04"\n'
+                  "/etc/hostname": "penguin", "/etc/os-release": 'PRETTY_NAME="Ubuntu 24.04.1 LTS"\nNAME="Ubuntu"\nVERSION_ID="24.04"\n'
                   'VERSION="24.04.1 LTS (Noble Numbat)"\nID=ubuntu\nID_LIKE=debian',
                   "/etc/shells": "/bin/sh\n/bin/bash\n/usr/bin/bash", "/etc/resolv.conf": "nameserver 10.20.30.1\nsearch corp.local",
-                  "/var/log/syslog": "Nov 12 08:55:01 linuxip CRON[2210]: (root) CMD (command -v debian-sa1)",
-                  "/var/log/auth.log": "Nov 12 08:55:20 linuxip sshd[2301]: Accepted publickey for analyst from 10.20.30.5",
+                  "/var/log/syslog": "Nov 12 08:55:01 penguin CRON[2210]: (root) CMD (command -v debian-sa1)",
+                  "/var/log/auth.log": "Nov 12 08:55:20 penguin sshd[2301]: Accepted publickey for analyst from 10.20.30.5",
                   "/proc/cpuinfo": "processor\t: 0\nmodel name\t: Intel(R) Xeon(R) CPU\ncpu cores\t: 4",
                   "/proc/meminfo": "MemTotal:        8056240 kB\nMemFree:         4296904 kB\nMemAvailable:    5878928 kB"}
         self.x, self.links = set(), {"/bin": "usr/bin", "/sbin": "usr/sbin", "/lib64": "usr/lib"}

@@ -5,13 +5,13 @@ cd /d "%~dp0"
 
 py -3 --version >nul 2>&1
 if not errorlevel 1 (
-    py -3 "linux_13.4.py"
+    py -3 "penguin.py"
     goto end
 )
 
 python --version >nul 2>&1
 if not errorlevel 1 (
-    python "linux_13.4.py"
+    python "penguin.py"
     goto end
 )
 

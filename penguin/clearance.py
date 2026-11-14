@@ -20,3 +20,14 @@ def level_from_code(text, total):
         return None
     level = int(m.group(1))
     return level if 1 <= level <= total and code_for(level) == text.strip().upper() else None
+
+
+def plus_code():
+    """Printed when you beat the game: unlocks New Game+ on any computer (newgame +)."""
+    digest = hashlib.sha256(f"{SALT}:new-game-plus".encode()).digest()
+    body = "".join(ALPHABET[b % len(ALPHABET)] for b in digest[:8])
+    return f"PP-NG-{body[:4]}-{body[4:]}"
+
+
+def is_plus_code(text):
+    return text.strip().upper() == plus_code()

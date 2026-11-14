@@ -15,12 +15,15 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from linuxip.cmd_dev import ghash  # noqa: E402
-from linuxip.manual import HELP, MAN  # noqa: E402
-from linuxip.tickets import LEVELS, TOTAL  # noqa: E402
-from linuxip.tickets_data import NUDGES  # noqa: E402
+from penguin.cmd_dev import ghash  # noqa: E402
+from penguin.manual import DESCRIPTION, EXAMPLES, EXIT_STATUS, HELP, MAN, SEE_ALSO  # noqa: E402
+from penguin.tickets import LEVELS, TOTAL  # noqa: E402
+from penguin.variants import levels_for  # noqa: E402
 
-from linuxip.tickets_data import COSTS_PRD, COSTS_TOP, DU_UPLOADS, EXPORT_OPEN, TRAFFIC_404, TRAFFIC_SUM  # noqa: E402
+ALL_LEVELS = [lv for seed in range(0, 7) for lv in levels_for(seed)]   # the rules must hold for every seed
+from penguin.tickets_data import NUDGES  # noqa: E402
+
+from penguin.tickets_data import COSTS_PRD, COSTS_TOP, DU_UPLOADS, EXPORT_OPEN, TRAFFIC_404, TRAFFIC_SUM  # noqa: E402
 
 WALKTHROUGH = f"""
 cat welcome.txt
@@ -243,7 +246,7 @@ tasks
 """
 
 
-def run(commands, state=None):
+def run(commands, state=None, seed=0):
     """Run the game with piped input. Returns (output, save-file data)."""
     fd, path = tempfile.mkstemp(suffix=".json")
     os.close(fd)
@@ -252,8 +255,12 @@ def run(commands, state=None):
     else:
         with open(path, "w") as f:
             json.dump(state, f)
-    env = dict(os.environ, LINUXIP_SAVE=path)
-    proc = subprocess.run([sys.executable, os.path.join(ROOT, "linux_13.4.py")], input=commands,
+    env = dict(os.environ, PENGUIN_SAVE=path)
+    if seed is None:
+        env.pop("PENGUIN_SEED", None)
+    else:
+        env["PENGUIN_SEED"] = str(seed)
+    proc = subprocess.run([sys.executable, os.path.join(ROOT, "penguin.py")], input=commands,
                           capture_output=True, text=True, encoding="utf-8", env=env, timeout=120)
     data = None
     if os.path.exists(path):
@@ -267,10 +274,10 @@ def answer(out, command):
     """The output lines printed right after `command` was typed at the prompt."""
     lines = out.splitlines()
     for i, line in enumerate(lines):
-        if "@linuxip:" in line and line.endswith("$ " + command):
+        if "@penguin:" in line and line.endswith("$ " + command):
             res = []
             for nxt in lines[i + 1:]:
-                if "@linuxip:" in nxt and "$ " in nxt:
+                if "@penguin:" in nxt and "$ " in nxt:
                     break
                 res.append(nxt)
             return "\n".join(res)
@@ -531,8 +538,8 @@ class RealCommands(Short):
 
 class Completion(unittest.TestCase):
     def test_tab_completion(self):
-        os.environ.setdefault("LINUXIP_SAVE", os.path.join(tempfile.gettempdir(), "linuxip_completion_test.json"))
-        from linuxip.shell import Shell
+        os.environ.setdefault("PENGUIN_SAVE", os.path.join(tempfile.gettempdir(), "penguin_completion_test.json"))
+        from penguin.shell import Shell
         s = Shell()
         s.start_level(1)
         self.assertEqual(s.completions("gre", "gre"), ["grep"])
@@ -602,12 +609,179 @@ class SystemAndNetwork(Short):
 
 class SshTicket(Short):
     def test_server_answers_inside_a_session(self):
-        from linuxip.tickets import LEVELS
+        from penguin.tickets import LEVELS
         tid = next(lv["ticket"] for lv in LEVELS if lv["name"] == "PRD disk is full")
         out, _ = run("ssh analyst@atlas-prd\ndf -h\nls -l /var/log/atlas\nexit\n", state={"ticket": tid, "best_ticket": tid})
         self.assertIn("/dev/sdb1        20G   20G     0 100% /var/log", out)
         self.assertIn("8429356811 Nov 12 09:00 debug.log", out)
         self.assertIn("Connection to atlas-prd closed.", out)
+
+
+class Randomised(Short):
+    """Every new game has other answers; a saved game keeps its own. The commands must really print them."""
+
+    @staticmethod
+    def play(seed, name, commands):
+        levels = levels_for(seed)
+        lv = next(l for l in levels if l["name"] == name)
+        out, _ = run(commands + "true\n", state={"ticket": lv["ticket"], "best_ticket": lv["ticket"]}, seed=seed)
+        return lv, out
+
+    def test_answers_change_with_the_seed(self):
+        varied = {}
+        for seed in range(0, 7):
+            for lv in levels_for(seed):
+                if lv["answer"]:
+                    varied.setdefault(lv["name"], set()).add(str(lv["answer"]))
+        for name in ("Run Atlas locally", "Failing unit tests", "Migration conflict", "What is deployed on TST?",
+                     "Slow database incident", "Which gate rules are active?"):
+            self.assertGreater(len(varied[name]), 2, f"{name} has the same answer in every game")
+
+    def test_commands_print_the_new_answers(self):
+        for seed in (1, 2, 3):
+            lv, out = self.play(seed, "Failing unit tests", "grep -cw FAILED test_report.txt\n")
+            self.assertEqual(answer(out, "grep -cw FAILED test_report.txt"), lv["answer"])
+            lv, out = self.play(seed, "Migration conflict", 'cut -d " " -f 1 migrations_list.txt | sort | uniq -d\n')
+            self.assertEqual(answer(out, 'cut -d " " -f 1 migrations_list.txt | sort | uniq -d'), lv["answer"])
+            lv, out = self.play(seed, "What is deployed on TST?", "tail -n 1 deploy.log\n")
+            self.assertIn(lv["answer"], answer(out, "tail -n 1 deploy.log"))
+            lv, out = self.play(seed, "Slow database incident", "grep -c ERROR incident/2026/11/12/atlas-db-02.log\n")
+            self.assertEqual(answer(out, "grep -c ERROR incident/2026/11/12/atlas-db-02.log"), lv["answer"])
+            lv, out = self.play(seed, "Who reads the secret key?", 'grep -rl SECRET_KEY atlas/app --include="*.py" | wc -l\n')
+            self.assertEqual(answer(out, 'grep -rl SECRET_KEY atlas/app --include="*.py" | wc -l'), lv["answer"])
+            lv, out = self.play(seed, "Which endpoint is broken?",
+                                'grep " 500 " access.log | cut -d " " -f 3 | sort | uniq -c | sort -n -r | head -n 1\n')
+            self.assertIn(lv["answer"], answer(out, 'grep " 500 " access.log | cut -d " " -f 3 | sort | uniq -c | sort -n -r | head -n 1'))
+
+    def test_awk_and_du_answers(self):
+        lv, out = self.play(2, "Who keeps asking for missing pages?", "awk '$4 == 404' traffic.log | wc -l\n")
+        self.assertEqual(answer(out, "awk '$4 == 404' traffic.log | wc -l"), lv["parts"][0][1])
+        top = lv["parts"][1][1]
+        lv, out = self.play(2, "Who keeps asking for missing pages?", f"awk '$1 == \"{top}\" {{s += $5}} END {{print s}}' traffic.log\n")
+        self.assertEqual(answer(out, f"awk '$1 == \"{top}\" {{s += $5}} END {{print s}}' traffic.log"), lv["parts"][2][1])
+        lv, out = self.play(3, "Who ate the disk?", "du -s data/* | sort -n -r | head -n 1\n")
+        size, folder = answer(out, "du -s data/* | sort -n -r | head -n 1").split("\t")
+        self.assertEqual((folder, size), ("data/" + lv["parts"][0][1], lv["parts"][1][1]))
+
+    def test_a_saved_game_keeps_its_answers(self):
+        out, data = run("hint\n", seed=7)
+        self.assertEqual(data["seed"], 7)
+        out2, data2 = run("tasks\n", state=data, seed=None)          # no fixed seed: the saved one is used
+        self.assertEqual(data2["seed"], 7)
+        _, a = run("check\n", seed=None)
+        _, b = run("check\n", seed=None)
+        self.assertNotEqual(a["seed"], b["seed"])                       # two new games differ
+
+    def test_level_command_asks_for_a_password(self):
+        from penguin.clearance import code_for
+        out, data = run("level 10\nwrong-password\nlevel 10\n%s\n" % code_for(10))
+        self.assertIn("Password for level 10: ", out)
+        self.assertIn("level: wrong password", out)
+        self.assertIn("Password accepted. Starting at level 10.", out)
+        self.assertEqual(data["level"], 10)
+        self.assertEqual(data["best"], 10)
+        out, data = run("level 3\n", state={"ticket": "ATL-105", "best_ticket": "ATL-105"})   # reached already: no password
+        self.assertNotIn("Password for level", out)
+        self.assertEqual(data["level"], 3)
+        out, _ = run("level 99\nlevel x\nlevel\n")
+        self.assertIn("level: which number (1-50)?", out)
+        self.assertIn("You are on level 1 of 50", out)
+
+
+class ModesAndManuals(Short):
+    LAST = {"ticket": "ATL-150", "best_ticket": "ATL-150"}
+
+    def test_new_game_plus_is_locked_until_you_beat_the_game(self):
+        from penguin.clearance import plus_code
+        out, data = run("newgame +\nwrong\nmode\n")
+        self.assertIn("New Game+ is locked. Finish the game, or type its password: ", out)
+        self.assertIn("newgame: New Game+ is still locked", out)
+        self.assertIn("New Game+ unlocks when you finish all 50 tickets.", out)
+        self.assertFalse(data["expert"])
+        out, data = run("newgame +\n%s\ny\nmode\n" % plus_code())          # the password unlocks it on any computer
+        self.assertIn("mode: New Game+", out)
+        self.assertTrue(data["expert"] and data["plus"])
+
+    def test_finishing_the_game_unlocks_new_game_plus(self):
+        from penguin.clearance import plus_code
+        out, data = run("submit 0\n", state=dict(self.LAST, plus=False))
+        lv = LEVELS[-1]
+        out, data = run("check\n", state=dict(self.LAST))
+        self.assertFalse(data["plus"])
+        # beat the last ticket by writing its answer file lines
+        cmds = ('echo "incident: INC-9003" > postmortem.txt\necho "host: atlas-db-03" >> postmortem.txt\n'
+                'echo "first error: 03:12" >> postmortem.txt\n')
+        out, data = run("submit INC-9003\nsubmit 03:12\n" + cmds, state=dict(self.LAST))
+        self.assertIn("Backlog empty", out)
+        self.assertIn("New Game+ unlocked: type  newgame +", out)
+        self.assertIn(plus_code(), out)
+        self.assertTrue(data["plus"] and data["finished"])
+
+    def test_new_game_plus_hides_commands_tips_and_most_hints(self):
+        out, data = run("ls nope\nhint\nhint\n", state=dict(self.LAST, plus=True, expert=True, tips=False))
+        card = out.split("Welcome back", 1)[1].split("analyst@penguin")[0]
+        self.assertIn("DESCRIPTION", card)
+        self.assertNotIn("COMMANDS", card)
+        self.assertIn("NEW GAME+", card)
+        self.assertNotIn("tip: check the name", out)
+        self.assertEqual(out.count("hint 1/1:"), 2)                       # asking again never gives more
+        self.assertNotIn("hint 2/3", out)
+
+    def test_new_game_plus_survives_a_restart_and_a_normal_new_game_leaves_it(self):
+        out, data = run("tasks\n", state=dict(self.LAST, plus=True, expert=True, tips=False))
+        self.assertTrue(data["expert"])
+        out, data = run("newgame\ny\n", state=data)
+        self.assertFalse(data["expert"])
+        self.assertTrue(data["plus"])                                      # unlocked for good
+        self.assertIn("COMMANDS", out.split("Start a new game?")[1])
+
+    def test_mode_cannot_be_switched(self):
+        out, _ = run("mode expert\nmode\n")
+        self.assertIn("mode: the mode cannot be switched during a game", out)
+        self.assertIn("mode: guided", out)
+
+    def test_man_pages_have_sections_and_examples(self):
+        out, _ = run("man grep\nman find\nman nosuchthing\n")
+        for section in ("NAME", "SYNOPSIS", "DESCRIPTION", "OPTIONS", "EXAMPLES", "EXIT STATUS", "SEE ALSO"):
+            self.assertIn(section, out.split("man find")[0])
+        self.assertIn("grep -i warn server.log", out)
+        self.assertIn("No manual entry for nosuchthing", out)
+
+    def test_every_common_command_has_examples(self):
+        for name in ("ls", "grep", "find", "sed", "awk", "chmod", "tar", "ssh", "curl", "kill", "ps"):
+            self.assertIn(name, EXAMPLES)
+            self.assertIn(name, DESCRIPTION)
+
+
+class CommandLine(Short):
+    def cli(self, *args, stdin=""):
+        env = dict(os.environ, PENGUIN_SAVE=os.path.join(tempfile.gettempdir(), "penguin_cli_test.json"))
+        env.pop("PENGUIN_SEED", None)
+        return subprocess.run([sys.executable, os.path.join(ROOT, "penguin.py"), *args], input=stdin, capture_output=True,
+                              text=True, encoding="utf-8", env=env, timeout=60)
+
+    def test_version_and_help(self):
+        self.assertEqual(self.cli("--version").stdout.strip(), "Penguin Protocol 6.1")
+        out = self.cli("--help")
+        self.assertEqual(out.returncode, 0)
+        self.assertIn("Usage: penguin.py [OPTIONS]", out.stdout)
+        self.assertIn("--plus", out.stdout)
+
+    def test_bad_options_fail_cleanly(self):
+        out = self.cli("--bogus")
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("penguin: unknown option '--bogus'", out.stderr)
+        self.assertEqual(self.cli("--seed", "x").returncode, 2)
+
+    def test_plus_flag_needs_a_beaten_game(self):
+        locked = self.cli("--plus", "--seed", "4", "--save", os.path.join(tempfile.gettempdir(), "penguin_cli_new.json"),
+                          stdin="exit\n").stdout
+        self.assertIn("New Game+ is locked", locked)
+        self.assertNotIn("NEW GAME+", locked)
+
+    def test_new_flag_ignores_the_saved_game(self):
+        again = self.cli("--new", "--seed", "4", stdin="exit\n").stdout
+        self.assertNotIn("Welcome back", again)
 
 
 class SaveAndResume(Short):
@@ -675,13 +849,13 @@ def specific_parts(command):
 
 class Cards(Short):
     def test_every_card_lists_the_commands_of_its_solution(self):
-        for lv in LEVELS:
+        for lv in ALL_LEVELS:
             card = " ".join(s + " " + e for s, _, e in lv["cmds"])
             for cmd in re.findall(r"(?:^|[;|]\s*)([a-z0-9]+|\./)", lv["hint"]):
                 self.assertTrue(cmd in ALWAYS or cmd in card, f"{lv['ticket']}: '{cmd}' missing from the card")
 
     def test_examples_never_show_the_solution(self):
-        for lv in LEVELS:
+        for lv in ALL_LEVELS:
             solution = [p for seg in lv["hint"].split(";") for p in specific_parts(seg)]
             names = {part for rel in lv["files"] for part in rel.rstrip("/").split("/") if len(part) >= 4}
             for syntax, expl, example in lv["cmds"]:
@@ -695,7 +869,7 @@ class Cards(Short):
                                      f"{lv['ticket']}: card line '{syntax}' contains the answer '{a}'")
 
     def test_texts_never_contain_answers(self):
-        for lv in LEVELS:
+        for lv in ALL_LEVELS:
             texts = lv["brief"] + [lv["done"], lv["name"], NUDGES.get(lv["ticket"], "")]
             texts += [q for q, _ in (lv["parts"] or [])]
             for a in answers(lv):
@@ -703,8 +877,10 @@ class Cards(Short):
                     self.assertFalse(a.lower() in t.lower(), f"{lv['ticket']}: text contains the answer '{a}': {t[:60]}")
 
     def test_help_and_man_never_contain_answers(self):
-        everything = (HELP + " " + " ".join(d + " " + s + " " + " ".join(o) for d, s, o in MAN.values())).lower()
-        for lv in LEVELS:
+        extra = " ".join(DESCRIPTION.values()) + " " + " ".join(f"{c} {w}" for ex in EXAMPLES.values() for c, w in ex)
+        extra += " " + " ".join(EXIT_STATUS.values()) + " " + " ".join(SEE_ALSO.values())
+        everything = (HELP + " " + extra + " " + " ".join(d + " " + s + " " + " ".join(o) for d, s, o in MAN.values())).lower()
+        for lv in ALL_LEVELS:
             for a in answers(lv):
                 if not a.isdigit():
                     self.assertFalse(a.lower() in everything, f"help/man contains the answer '{a}' of {lv['ticket']}")

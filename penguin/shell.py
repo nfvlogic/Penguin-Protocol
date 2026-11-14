@@ -1,5 +1,6 @@
 """The shell itself: runs command lines like bash and drives the main loop."""
 import os
+import random
 import re
 import shutil
 import sys
@@ -13,14 +14,15 @@ from .cmd_network import NetworkCommands
 from .cmd_text import TextCommands
 from .cmd_sys import SysCommands, default_procs
 from .cmd_tickets import TicketCommands
-from .core import HOME, HOST, MY_IP, NOW, TTY, USER, ShellError, c, plain
+from .core import HOME, HOST, MY_IP, NOW, TTY, USER, VERSION, ShellError, c, plain
 from .manual import MAN
 from .parser import parse, scan, split_lists, tokenize
 from .tickets import TOTAL
+from .variants import levels_for
 from .vfs import FS
 
 ALIASES = {"ll": ["ls", "-alF"], "la": ["ls", "-A"], "l": ["ls", "-CF"],
-           "levels": ["tasks"], "level": ["task"], "logout": ["exit"], "pip3": ["pip"]}
+           "levels": ["tasks"], "logout": ["exit"], "pip3": ["pip"]}
 # Commands that exist on a real system but are not part of MAN (handled with a real message).
 EXTRA = {"apt", "apt-get", "printenv", "whatis", "nano", "vim", "vi", "code"}
 WINDOWS = {"cls": "clear", "ipconfig": "ip addr", "del": "rm", "copy": "cp", "move": "mv",
@@ -36,6 +38,11 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         self.fs = FS()
         self.cwd = self.oldpwd = HOME
         self.level, self.best, self.part, self.finished = 1, 1, 0, False
+        env_seed = os.environ.get("PENGUIN_SEED")           # a fixed seed (tests); otherwise every new game is different
+        self.seed = int(env_seed) if env_seed is not None else random.randrange(1, 10 ** 9)
+        self.levels = levels_for(self.seed)
+        self.expert = False                                  # New Game+: cards without the command list, no tips
+        self.plus_unlocked = False                           # becomes True when the game has been beaten
         self.running, self.status, self.tips = True, 0, True
         self.typed = []
         self.pipe_out = False      # True when stdout goes into a pipe or a file
@@ -474,7 +481,7 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         first = not stripped or stripped.endswith((";", "|", "&&", "||", "(", "then", "do", "else"))
         if first and "/" not in text:
             names = set(MAN) | EXTRA | set(self.aliases) | BUILTINS | {"if", "for", "while", "until"}
-            names -= {"levels", "level", "logout", "pip3"}
+            names -= {"levels", "logout", "pip3"}
             return sorted(n for n in names if n.startswith(text))
         folder, _, base = text.rpartition("/")
         shown_dir = folder + "/" if "/" in text else ""
@@ -509,7 +516,7 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
     def banner(self):
         if TTY:
             sys.stdout.write("\x1b[3J\x1b[2J\x1b[H")  # clear screen and scrollback
-        self.out("Welcome to Penguin Protocol 6.1 (GNU/Linux 6.8.0-corp x86_64) - Atlas dev box (simulated)")
+        self.out(f"Welcome to Penguin Protocol {VERSION} (GNU/Linux 6.8.0-corp x86_64) - Atlas dev box (simulated)")
         self.out("")
         self.out(f"  System information as of {NOW}")
         self.out("")
@@ -526,8 +533,18 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         if TTY:
             self.setup_completion()
         self.banner()
-        if self.load():
+        if getattr(self, "fresh", False):
+            pass                                            # --new: ignore the saved game
+        elif self.load():
             self.out(c("32", "Welcome back! Progress loaded"))
+        if getattr(self, "start_expert", False):
+            if self.plus_unlocked:                  # --plus: a fresh New Game+
+                self.seed = random.randrange(1, 10 ** 9) if "PENGUIN_SEED" not in os.environ else self.seed
+                self.levels = levels_for(self.seed)
+                self.best, self.finished, self.level, self.part = 1, False, 1, 0
+                self.expert, self.tips = True, False
+            else:
+                self.out(c("33", f"New Game+ is locked: finish all {TOTAL} tickets first (or use  newgame +  with its password)."))
         self.start_level(self.level, self.part)
         if self.part:
             self.out(c("1;97", f"-> Continuing at step {self.part + 1}"))
@@ -583,7 +600,54 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         print("logout")
 
 
-def main():
+USAGE = """Penguin Protocol - learn Linux with realistic tickets.
+
+Usage: penguin.py [OPTIONS]
+
+Options:
+  --new          start a new game (new answers); your old save is replaced when you play
+  --plus         start New Game+ (only after you beat the game): new answers, no command lists, no tips
+  --seed N       use answer set N (the same N always gives the same answers)
+  --save FILE    use another save file
+  --version      show the version
+  -h, --help     show this help
+
+Inside the game: help, man COMMAND, hint, check, submit ANSWER, tasks, level N, newgame."""
+
+
+def parse_args(argv):
+    """Handle the command line options. Returns a dict of what to do."""
+    opts, i = {"new": False, "expert": False}, 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("-h", "--help"):
+            print(USAGE)
+            sys.exit(0)
+        elif a == "--version":
+            print(f"Penguin Protocol {VERSION}")
+            sys.exit(0)
+        elif a == "--new":
+            opts["new"] = True
+        elif a in ("--plus", "--expert"):
+            opts["expert"] = True
+        elif a in ("--seed", "--save") and i + 1 < len(argv):
+            if a == "--seed":
+                if not argv[i + 1].lstrip("-").isdigit():
+                    print(f"penguin: --seed needs a number, not '{argv[i + 1]}'", file=sys.stderr)
+                    sys.exit(2)
+                os.environ["PENGUIN_SEED"] = argv[i + 1]
+            else:
+                os.environ["PENGUIN_SAVE"] = argv[i + 1]
+            i += 1
+        else:
+            print(f"penguin: unknown option '{a}'\nTry 'penguin.py --help' for more information.", file=sys.stderr)
+            sys.exit(2)
+        i += 1
+    return opts
+
+
+def main(argv=None):
+    opts = parse_args(sys.argv[1:] if argv is None else argv)
     if os.name == "nt":
         os.system("")  # enables ANSI colours in the Windows console
     else:
@@ -596,6 +660,7 @@ def main():
     except (AttributeError, ValueError):
         pass
     shell = Shell()
+    shell.fresh, shell.start_expert = opts["new"], opts["expert"]
     try:
         shell.run()
     except KeyboardInterrupt:
