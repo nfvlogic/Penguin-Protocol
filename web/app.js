@@ -8,7 +8,28 @@ const MAX_CHILDREN = 4000;
 
 const $ = (id) => document.getElementById(id);
 const out = $("out"), promptEl = $("prompt"), input = $("input"), screen = $("screen");
-function fit() { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; }
+function fit() { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; schedCur(); }
+
+// ---- block cursor: the text box is a <textarea>, so the cursor is drawn by hand. A hidden copy of the text up to the
+// cursor tells us where it is, even when a long command wraps onto several lines.
+const cur = $("cur"), lineEl = $("line");
+const mirror = document.createElement("div"); mirror.id = "mirror"; lineEl.appendChild(mirror);
+let curQueued = false;
+function schedCur() { if (!curQueued) { curQueued = true; requestAnimationFrame(() => { curQueued = false; updateCursor(); }); } }
+function updateCursor() {
+  if (input.disabled || input.selectionStart !== input.selectionEnd) { cur.className = ""; return; }
+  const cs = getComputedStyle(input), pos = input.selectionEnd ?? input.value.length;
+  mirror.style.cssText = `left:${input.offsetLeft}px;top:${input.offsetTop}px;width:${input.clientWidth}px;font:${cs.font};letter-spacing:${cs.letterSpacing};line-height:${cs.lineHeight}`;
+  mirror.textContent = input.value.slice(0, pos);
+  const mark = document.createElement("span"); mark.textContent = input.value[pos] && input.value[pos] !== "\n" ? input.value[pos] : "x";
+  mirror.appendChild(mark);
+  const w = mark.getBoundingClientRect().width || 9, h = parseFloat(cs.lineHeight) || 21;
+  const focused = document.activeElement === input;
+  cur.style.width = w + "px"; cur.style.height = h + "px";
+  cur.style.left = input.offsetLeft + mark.offsetLeft + "px"; cur.style.top = input.offsetTop + mark.offsetTop + "px";
+  cur.className = "on" + (focused ? "" : " idle");
+  if (focused) { cur.classList.add("solid"); void cur.offsetWidth; cur.classList.remove("solid"); }   // stays solid while typing, blinks again at rest
+}
 let py = null, api = null, busy = true, alive = false;
 const history = []; let hpos = 0, draft = "";
 let tabCount = 0;
@@ -52,9 +73,7 @@ Ansi.prototype.render = function (text, parent, onClear) {
 };
 const outAnsi = new Ansi();
 function clearScreen() { out.textContent = ""; }
-let cmdText = "";                                       // everything the game printed for the current command
 function write(text) {
-  cmdText += text;
   outAnsi.render(text, out, clearScreen);
   while (out.childNodes.length > MAX_CHILDREN) out.removeChild(out.firstChild);
 }
@@ -157,8 +176,9 @@ async function loadPython() {
   });
   py = await loadPyodide({ indexURL: PYODIDE_URL });
   const dec = new TextDecoder();
-  py.setStdout({ write: (buf) => { write(dec.decode(buf, { stream: true })); return buf.length; } });
-  py.setStderr({ write: (buf) => { writeErr(dec.decode(buf, { stream: true })); return buf.length; } });
+  // While `cap` is an array the game's output is held back, so it can be played with an animation afterwards.
+  py.setStdout({ write: (buf) => { const t = dec.decode(buf, { stream: true }); if (cap) cap.push({ t }); else write(t); return buf.length; } });
+  py.setStderr({ write: (buf) => { const t = dec.decode(buf, { stream: true }); if (cap) cap.push({ t, err: true }); else writeErr(t); return buf.length; } });
   $("loadmsg").textContent = "Loading the game...";
   const zip = await (await fetch("penguin.zip")).arrayBuffer();
   py.unpackArchive(zip, "zip", { extractDir: "/home/pyodide/game" });
@@ -173,31 +193,73 @@ async function loadPython() {
   };
 }
 
-// ------------------------------------------------------------------ mission-complete readout
-// Printed inside the terminal, right above the "Objective secured" line, like a fast test run with an upload bar.
+// ------------------------------------------------------------------ animations
+// Output of the opening screen and of a new mission cascades in line by line; a submitted answer shows a short
+// "sending / verifying" log first. Any tap or key skips the animation.
 const TOTAL_LEVELS = 50;
+const REDUCE = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function celebrate(text) {
+let cap = null, animating = false, skip = false;
+const nap = (ms) => (skip ? Promise.resolve() : sleep(ms));
+const bump = () => { if (animating) skip = true; };
+window.addEventListener("pointerdown", bump, true);
+window.addEventListener("keydown", bump, true);
+
+function writeDrop(text) {                               // one line that flashes in
+  const sp = document.createElement("span"); sp.className = "drop";
+  out.appendChild(sp);
+  outAnsi.render(text, sp, clearScreen);
+  while (out.childNodes.length > MAX_CHILDREN) out.removeChild(out.firstChild);
+}
+
+// Print what was held back. `cascade`: lines drop in quickly, like a terminal booting.
+async function replay(parts, cascade, budget = 1000) {
+  if (!cascade || REDUCE) { for (const p of parts) { if (p.err) writeErr(p.t); else write(p.t); } return; }
+  const lines = [];
+  for (const p of parts) for (const t of p.t.match(/[^\n]*\n|[^\n]+/g) || []) lines.push({ t, err: p.err });
+  const delay = Math.min(40, budget / Math.max(lines.length, 1));
+  animating = true; skip = false;
+  for (const { t, err } of lines) {
+    if (err) writeErr(t);
+    else if (skip || /\x1b\[[23]J/.test(t)) write(t);
+    else writeDrop(t);
+    scrollDown();
+    await nap(delay);
+  }
+  animating = false;
+}
+
+// "sending answer ... sent" then "verifying ATL-101 [##########] PASSED", about 1.5 s in all.
+async function answerLog(isSubmit, text) {
   const m = /Objective secured: Operation (.+?) \((ATL-\d+)\)/.exec(text);
-  if (!m) return;
   const final = /Mission complete: all (\d+) objectives/.test(text);
-  const anchor = [...out.querySelectorAll("span.f32")].reverse().find((e) => e.textContent.includes("Objective secured"));
-  if (!anchor) return;
-  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // one line, redrawn in place: sending [######----]  60%  ->  sent [##########] PASSED
-  const line = document.createElement("div"); line.className = "verify";
-  const lbl = document.createElement("span"), res = document.createElement("span");
-  lbl.className = "hl"; res.className = "ok";
-  line.append(lbl, res);
-  out.insertBefore(line, anchor);
-  const draw = (k) => { lbl.textContent = "sending " + m[2] + " [" + "#".repeat(k) + "-".repeat(10 - k) + "] " + (k < 10 ? String(k * 10).padStart(3) + "%" : ""); res.textContent = k < 10 ? "" : "PASSED"; };
-  if (reduce) { draw(10); return; }
-  for (let k = 0; k <= 10; k++) { draw(k); await sleep(k === 10 ? 0 : 60); }
-  if (final) { line.append(document.createTextNode("  you were never here.")); }
+  if (!isSubmit && !m) return;
+  const box = document.createElement("div"); box.className = "verify"; out.appendChild(box);
+  animating = true; skip = false;
+  if (isSubmit) {
+    const l = document.createElement("div"), msg = document.createElement("span"), st = document.createElement("span");
+    msg.className = "hl"; st.className = "dm"; l.append(msg, st); box.appendChild(l);
+    const frames = "|/-\\";
+    for (let k = 0; k < 5; k++) { msg.textContent = "sending answer to Control ... "; st.textContent = frames[k % 4]; scrollDown(); await nap(70); }
+    st.textContent = "sent"; st.className = "ok";
+    await nap(100);
+  }
+  if (m) {
+    const l = document.createElement("div"), lbl = document.createElement("span"), res = document.createElement("span");
+    lbl.className = "hl"; res.className = "ok"; l.append(lbl, res); box.appendChild(l);
+    for (let k = 0; k <= 10; k++) {
+      lbl.textContent = "verifying " + m[2] + " [" + "#".repeat(k) + "-".repeat(10 - k) + "] " + (k < 10 ? String(k * 10).padStart(3) + "%" : "");
+      res.textContent = k < 10 ? "" : "PASSED";
+      scrollDown();
+      await nap(k === 10 ? 200 : 60);
+    }
+    if (final) l.appendChild(document.createTextNode("  you were never here."));
+  }
+  animating = false;
 }
 
 // ------------------------------------------------------------------ the terminal
-function setBusy(b) { busy = b; input.readOnly = b; input.disabled = !alive; }
+function setBusy(b) { busy = b; input.readOnly = b; input.disabled = !alive; schedCur(); }
 
 let marker = null;
 function after(promptText) {
@@ -213,7 +275,6 @@ function after(promptText) {
   }
   setBusy(false);
   if (marker && marker.isConnected) scrollToNew(marker); else scrollDown();
-  celebrate(cmdText); cmdText = "";
   if (alive && FINE_POINTER) focusInput();       // on a computer keep typing; on a phone the keyboard stays as the user left it
 }
 
@@ -228,12 +289,12 @@ function scrollToNew(marker) {
 function focusInput() { if (!input.disabled) input.focus({ preventScroll: true }); }
 
 let currentPrompt = "";
-function showPrompt(p) { currentPrompt = p; setPrompt(p); }
+function showPrompt(p) { currentPrompt = p; setPrompt(p); schedCur(); }
 
 async function submit() {
   if (busy || !alive) return;
   const line = input.value;
-  input.value = ""; fit(); tabCount = 0; cmdText = "";
+  input.value = ""; fit(); tabCount = 0;
   // echo what was typed, with the coloured prompt
   const p = document.createElement("span"); out.appendChild(p);
   marker = p;
@@ -243,7 +304,13 @@ async function submit() {
   hpos = history.length; draft = "";
   setBusy(true);
   await new Promise((r) => setTimeout(r, 0));          // let the browser paint the echo first
-  const next = api.feed(line, cols());
+  cap = [];
+  let next, parts;
+  try { next = api.feed(line, cols()); } finally { parts = cap; cap = null; }
+  const text = parts.map((p) => p.t).join("");
+  const passed = /Objective secured: Operation/.test(text);
+  if (!REDUCE) await answerLog(/^\s*submit\b/.test(line), text);
+  await replay(parts, passed);                         // a new mission cascades in; other output is instant
   showPrompt(next);
   after(next);
 }
@@ -417,12 +484,20 @@ function tab() {
 
 async function startSession() {
   setBusy(true); alive = false;
+  cap = [];
   const next = api.boot(cols());
+  const parts = cap; cap = null;
+  let seen = false;                                    // the full opening only plays on the first visit; later it is quicker
+  try { seen = localStorage.getItem("penguin_seen") === "1"; localStorage.setItem("penguin_seen", "1"); } catch (e) { /* no storage: always the full one */ }
+  await replay(parts, true, seen ? 600 : 1500);
   showPrompt(next); after(next);
 }
 
 // ------------------------------------------------------------------ wiring
 input.addEventListener("input", fit);
+["focus", "blur", "keyup", "click", "select"].forEach((ev) => input.addEventListener(ev, schedCur));
+document.addEventListener("selectionchange", () => { if (document.activeElement === input) schedCur(); });
+window.addEventListener("resize", schedCur);
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); submit(); }
   else if (e.key === "ArrowUp") { e.preventDefault(); historyStep(-1); }
