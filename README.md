@@ -166,3 +166,11 @@ The suite runs a full walkthrough of every ticket and checks the shell against r
 Add a `task(...)` entry in `penguin/tickets.py`. Card examples must use other files, folders and hosts than
 the ticket and must never contain an answer; the tests check this. Add a first-level hint in `NUDGES`
 (`penguin/tickets_data.py`) and the solution to `WALKTHROUGH` in the tests.
+
+## License
+
+Copyright (c) 2026 nfvlogic. All rights reserved.
+
+You are welcome to view the code and run the game for your own learning. For anything else, such as copying,
+sharing, changing, teaching with it or using it in a company, please ask first by opening an issue. See
+[LICENSE](LICENSE).

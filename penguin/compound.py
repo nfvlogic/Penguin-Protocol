@@ -3,7 +3,7 @@ break and continue, command substitution ($(...)) and multi-line input (the > pr
 import fnmatch
 import re
 
-from .core import HOME, USER, ShellError
+from .core import ShellError
 from .parser import scan, split_top
 
 OPEN = {"for", "while", "until", "if"}

@@ -4,7 +4,7 @@ import re
 import shlex
 from datetime import datetime
 
-from .core import HOME, HOST, NOW, USER, ShellError
+from .core import HOME, NOW, USER, ShellError
 
 NOW_DT = datetime(2026, 11, 12, 9, 0, 1)
 EPOCH = calendar.timegm((2026, 11, 12, 8, 0, 1))   # 09:00:01 CET = 08:00:01 UTC
