@@ -1,4 +1,4 @@
-"""The 30 Atlas tickets. Edit this file to change or add tickets.
+"""The 50 Atlas tickets (the story around them is in missions.py). Edit this file to change or add tickets.
 
 Each ticket has either an `answer` (submit it), `checks` (completes by itself) or
 `parts` (several steps; a step goal is an answer string/tuple or a check function).
@@ -881,4 +881,7 @@ LEVELS = [
               'echo "incident: INC-9003" > postmortem.txt ; echo "host: atlas-db-03" >> postmortem.txt ; '
               'echo "first error: 03:12" >> postmortem.txt'),
 ]
+from .missions import apply as _tell_story  # noqa: E402
+
+_tell_story(LEVELS)
 TOTAL = len(LEVELS)

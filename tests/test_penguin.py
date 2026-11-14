@@ -296,8 +296,8 @@ class Walkthrough(Short):
         cls.out, cls.save = run(WALKTHROUGH)
 
     def test_all_tickets_resolved(self):
-        self.assertEqual(self.out.count("resolved:"), TOTAL, self.out[-2000:])
-        self.assertIn("Backlog empty", self.out)
+        self.assertEqual(self.out.count("secured:"), TOTAL, self.out[-2000:])
+        self.assertIn("Mission complete", self.out)
 
     def test_no_crash(self):
         self.assertNotIn("internal error", self.out)
@@ -712,7 +712,7 @@ class ModesAndManuals(Short):
         cmds = ('echo "incident: INC-9003" > postmortem.txt\necho "host: atlas-db-03" >> postmortem.txt\n'
                 'echo "first error: 03:12" >> postmortem.txt\n')
         out, data = run("submit INC-9003\nsubmit 03:12\n" + cmds, state=dict(self.LAST))
-        self.assertIn("Backlog empty", out)
+        self.assertIn("Mission complete", out)
         self.assertIn("New Game+ unlocked: type  newgame +", out)
         self.assertIn(plus_code(), out)
         self.assertTrue(data["plus"] and data["finished"])
@@ -720,8 +720,8 @@ class ModesAndManuals(Short):
     def test_new_game_plus_hides_commands_tips_and_most_hints(self):
         out, data = run("ls nope\nhint\nhint\n", state=dict(self.LAST, plus=True, expert=True, tips=False))
         card = out.split("Welcome back", 1)[1].split("analyst@penguin")[0]
-        self.assertIn("DESCRIPTION", card)
-        self.assertNotIn("COMMANDS", card)
+        self.assertIn("BRIEFING", card)
+        self.assertNotIn("TOOLKIT", card)
         self.assertIn("NEW GAME+", card)
         self.assertNotIn("tip: check the name", out)
         self.assertEqual(out.count("hint 1/1:"), 2)                       # asking again never gives more
@@ -733,7 +733,7 @@ class ModesAndManuals(Short):
         out, data = run("newgame\ny\n", state=data)
         self.assertFalse(data["expert"])
         self.assertTrue(data["plus"])                                      # unlocked for good
-        self.assertIn("COMMANDS", out.split("Start a new game?")[1])
+        self.assertIn("TOOLKIT", out.split("Start a new game?")[1])
 
     def test_mode_cannot_be_switched(self):
         out, _ = run("mode expert\nmode\n")

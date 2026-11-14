@@ -39,11 +39,11 @@ class TicketCommands:
 
     def complete(self):
         n, lv = self.level, self.ticket()
-        self.out(c("1;32", f"✓ Ticket {lv['ticket']} resolved: {lv['name']}"))
+        self.out(c("1;32", f"✓ Objective secured: Operation {lv['op']} ({lv['ticket']})"))
         if n == TOTAL:
             self.best, self.finished = TOTAL, True
             self.plus_unlocked = True
-            self.out(c("1;32", f"Backlog empty - all {TOTAL} tickets resolved. "
+            self.out(c("1;32", f"Mission complete: all {TOTAL} objectives secured. You were never here. "
                                "Next step: do the same on a real Ubuntu (wsl --install)."))
             if self.expert:
                 self.out(c("1;36", "New Game+ complete. You can do this for real now."))
@@ -124,14 +124,14 @@ class TicketCommands:
     def card_lines(self, w, two):
         lv, n = self.ticket(), self.level
         rule = c("90", "─" * w)
-        left_title, right_title = f" {lv['ticket']}  {lv['name']}", f"Priority: {lv['prio']} "
+        left_title, right_title = f" {lv['ticket']}  Operation {lv['op']}", f"Threat: {lv['threat']} "
         gap = w - len(left_title) - len(right_title)
         if gap >= 1:
             head = [c("1;97", left_title) + " " * gap + c(PRIO_COLOR.get(lv["prio"], "37"), right_title)]
         else:    # narrow screen (a phone): the title wraps and the priority gets its own line
             head = [c("1;97", " " + t) for t in textwrap.wrap(left_title.strip(), w - 1)] + \
                    [c(PRIO_COLOR.get(lv["prio"], "37"), " " + right_title.strip())]
-        parts = [f"From: {lv['from']}", f"Module: {lv['module']}", f"Ticket {n} of {TOTAL}",
+        parts = [f"Handler: {lv['handler']}", f"Phase: {lv['phase']}", f"File {n} of {TOTAL}",
                  f"Password: {code_for(n)}"] + (["NEW GAME+"] if self.expert else [])
         rows, cur = [], ""
         for part in parts:  # wrap between fields, never inside one
@@ -141,8 +141,8 @@ class TicketCommands:
             cur += ("   " if cur else " ") + part
         rows.append(cur)
         lines = [rule] + head + [c("90", r) for r in rows] + [rule]
-        if self.expert:   # a real ticket: the problem and nothing else
-            body = [c("1;33", " DESCRIPTION")]
+        if self.expert:   # the briefing and nothing else
+            body = [c("1;33", " BRIEFING")]
             for para in lv["brief"]:
                 body += [" " + t for t in textwrap.wrap(para, w - 2)] + [""]
             if lv["parts"]:
@@ -152,11 +152,11 @@ class TicketCommands:
                     wrapped = textwrap.wrap(f"{k + 1}. {question}", w - 8)
                     body += [f" {mark} {wrapped[0]}"] + ["     " + t for t in wrapped[1:]]
                 body.append("")
-            body += [c("1;33", " RESOLVED WHEN")] + [" " + t for t in textwrap.wrap(lv["done"], w - 2)]
+            body += [c("1;33", " MISSION COMPLETE WHEN")] + [" " + t for t in textwrap.wrap(lv["done"], w - 2)]
             return lines + body + [rule]
 
         def build(lw, rw):
-            left = [c("1;33", " DESCRIPTION")]
+            left = [c("1;33", " BRIEFING")]
             for para in lv["brief"]:
                 left += [" " + s for s in textwrap.wrap(para, lw - 1)] + [""]
             if lv["parts"]:
@@ -166,8 +166,8 @@ class TicketCommands:
                     wrapped = textwrap.wrap(f"{k + 1}. {question}", lw - 6)
                     left += [f" {mark} {wrapped[0]}"] + ["     " + s for s in wrapped[1:]]
                 left.append("")
-            left += [c("1;33", " RESOLVED WHEN")] + [" " + s for s in textwrap.wrap(lv["done"], lw - 1)]
-            right = [c("1;33", "COMMANDS (examples: other files)")]
+            left += [c("1;33", " MISSION COMPLETE WHEN")] + [" " + s for s in textwrap.wrap(lv["done"], lw - 1)]
+            right = [c("1;33", "TOOLKIT (examples: other files)")]
             for syntax, expl, example in lv["cmds"]:
                 if syntax in ("submit ANSWER", "check"):  # always available: listed in the footer
                     continue
@@ -195,14 +195,14 @@ class TicketCommands:
         lines = [""] + self.card_lines(w, w >= 70)
         footer = (" New Game+: only the problem is shown.   hint (one)  man  help"
                   if self.expert else
-                  " Always available: ls cd pwd cat less tree man   Ticket: task  check  hint  submit  password")
+                  " Always available: ls cd pwd cat less tree man   Mission: task  check  hint  submit  password")
         lines += [c("90", row) for row in ([" " + r for r in textwrap.wrap(footer.strip(), w - 2, subsequent_indent="  ")] if vlen(footer) > w else [footer])]
         lines += [""]
         self.out("\n".join(lines))
 
     def summary(self):
         lv, w = self.ticket(), self.width()
-        out = [c("1;97", f"{lv['ticket']}  {lv['name']}") + c("90", f"   ({lv['prio']}, ticket {self.level} of {TOTAL})")]
+        out = [c("1;97", f"{lv['ticket']}  Operation {lv['op']}") + c("90", f"   (threat: {lv['threat']}, file {self.level} of {TOTAL})")]
         if lv["parts"]:
             for k, (q, _) in enumerate(lv["parts"]):
                 mark = "[x]" if k < self.part else ("[>]" if k == self.part else "[ ]")
@@ -217,7 +217,7 @@ class TicketCommands:
                 cur = " " * 12
             cur += syntax + "   "
         out += [c("32", r) for r in rows + [cur.rstrip()]]
-        out.append(c("90", "  Full ticket: task full    Hint: hint"))
+        out.append(c("90", "  Full briefing: task full    Hint: hint"))
         return "\n".join(out)
 
     # ---------------------------------------------------------- practice commands
@@ -279,10 +279,10 @@ class TicketCommands:
         for i, lv in enumerate(self.levels, 1):
             if lv["module"] != module:
                 module = lv["module"]
-                rows.append(c("1;33", module.upper()))
+                rows.append(c("1;33", f"PHASE: {lv['phase'].upper()}"))
             done = i < self.best or (i == TOTAL and self.finished)
             status = c("32", "done") if done else ("open" if i <= self.best else c("90", "locked"))
-            rows.append(f"{'>' if i == self.level else ' '} {i:>2}  {lv['ticket']:<9}{lv['name']:<36}{status}")
+            rows.append(f"{'>' if i == self.level else ' '} {i:>2}  {lv['ticket']:<9}{lv['op']:<28}{status}")
         return "\n".join(rows)
 
     def cmd_task(self, args, stdin):

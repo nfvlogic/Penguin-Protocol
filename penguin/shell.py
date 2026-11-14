@@ -522,12 +522,15 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         self.out("")
         self.out("  System load:  0.08               Users logged in:       1")
         self.out(f"  Usage of /:   41.2% of 62.67GB   IPv4 address for eth0: {MY_IP}")
-        self.out(f"  Memory usage: 23%                Backlog:               {TOTAL} tickets")
+        self.out(f"  Memory usage: 23%                Open files:            {TOTAL} targets")
         self.out("")
         self.out(c("90", "  Authorized use only. Practice environment: nothing here touches your real files."))
-        self.out(c("90", "  help = all commands   man <cmd> = manual   hint = help with the ticket"))
+        self.out(c("90", "  help = all commands   man <cmd> = manual   hint = help with the mission"))
         self.out("")
         self.out("Last login: Wed Nov 11 17:42:13 2026 from 10.20.30.5")
+        self.out("")
+        self.out(c("1;33", "  UPLINK OPEN") + c("33", "  Cover: contractor 'analyst', badge 4821. You are inside Atlas."))
+        self.out(c("33", "  Stay quiet. Leave no trace. Control is listening."))
 
     def start(self):
         """Everything before the first prompt: banner, load the save, show the first ticket."""

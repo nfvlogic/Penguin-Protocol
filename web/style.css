@@ -1,4 +1,4 @@
-:root { --bg:#0d1117; --fg:#d0d7de; --dim:#6e7681; --key:#21262d; --keyfg:#c9d1d9; --accent:#3fb950;
+:root { --bg:#050505; --fg:#d8d8d8; --dim:#777; --key:#1a1a1a; --keyfg:#e6e6e6; --accent:#f5a031;
   --c30:#484f58; --c31:#ff7b72; --c32:#3fb950; --c33:#d29922; --c34:#58a6ff; --c35:#bc8cff; --c36:#39c5cf; --c37:#b1bac4;
   --c90:#8b949e; --c91:#ffa198; --c92:#56d364; --c93:#e3b341; --c94:#79c0ff; --c95:#d2a8ff; --c96:#56d4dd; --c97:#f0f6fc; }
 * { box-sizing:border-box; }
@@ -16,11 +16,13 @@ body { font:14px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mon
   padding:0; margin:0; caret-color:var(--accent); border-radius:0; -webkit-appearance:none; appearance:none; }
 #input:disabled { opacity:.5; }
 #keys { flex:none; display:flex; gap:6px; overflow-x:auto; padding:6px 8px calc(6px + env(safe-area-inset-bottom));
-  background:#161b22; border-top:1px solid #30363d; scrollbar-width:none; }
+  background:#0e0e0e; border-top:1px solid #2a2a2a; scrollbar-width:none; }
 #keys::-webkit-scrollbar { display:none; }
 #keys button { flex:none; min-width:42px; height:38px; padding:0 12px; font:inherit; font-size:15px; color:var(--keyfg);
-  background:var(--key); border:1px solid #30363d; border-radius:8px; touch-action:manipulation; }
-#keys button:active { background:#30363d; }
+  background:var(--key); border:1px solid #333; border-radius:8px; touch-action:manipulation; }
+#keys button:active { background:#f5a031; color:#000; }
+#loading img { width:96px; height:96px; border-radius:22px; display:block; margin:0 auto 12px; }
+#loading b { color:var(--accent); letter-spacing:.08em; text-transform:uppercase; }
 #loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
   background:var(--bg); z-index:9; line-height:2; transition:opacity .2s; }
 #loading.done { opacity:0; pointer-events:none; }
