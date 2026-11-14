@@ -96,8 +96,26 @@ def parse_sed(script, ere):
                 i += 1
             rx = sed_regex(pat, ere, "I" in flags or "i" in flags)
             cmds.append((a1, a2, neg, "s", (rx, repl, "g" in flags, "p" in flags)))
-        elif ch in "pdq":
+        elif ch in "pdq=":
             cmds.append((a1, a2, neg, ch, None))
+        elif ch == "y":
+            delim = script[i] if i < n else fail("unterminated `y' command")
+            i += 1
+            src, dst = read_until(delim), read_until(delim)
+            if len(src) != len(dst):
+                fail("strings for `y' command are different lengths")
+            cmds.append((a1, a2, neg, "y", str.maketrans(src, dst)))
+        elif ch in "aic":
+            while i < n and script[i] in " \t":
+                i += 1
+            if i < n and script[i] == "\\":
+                i += 1
+                while i < n and script[i] in " \t\n":
+                    i += 1
+            end = script.find("\n", i)
+            end = n if end < 0 else end
+            cmds.append((a1, a2, neg, ch, script[i:end]))
+            i = end
         else:
             fail(f"unknown command: `{ch}'")
     return cmds
@@ -125,7 +143,7 @@ def run_sed(cmds, text, quiet):
     out, active = [], {}
     total = len(lines)
     for no, line in enumerate(lines, 1):
-        deleted, stop = False, False
+        deleted, stop, after = False, False, []
         for k, (a1, a2, neg, cmd, arg) in enumerate(cmds):
             def hit(a):
                 return (a[0] == "n" and no == a[1]) or (a[0] == "last" and no == total) or \
@@ -153,6 +171,18 @@ def run_sed(cmds, text, quiet):
                     out.append(line)
             elif cmd == "p":
                 out.append(line)
+            elif cmd == "=":
+                out.append(str(no))
+            elif cmd == "y":
+                line = line.translate(arg)
+            elif cmd == "i":
+                out.append(arg)
+            elif cmd == "a":
+                after.append(arg)
+            elif cmd == "c":
+                out.append(arg)
+                deleted = True
+                break
             elif cmd == "d":
                 deleted = True
                 break
@@ -160,6 +190,7 @@ def run_sed(cmds, text, quiet):
                 stop = True
         if not deleted and not quiet:
             out.append(line)
+        out += after
         if stop:
             break
     return "\n".join(out)
@@ -233,7 +264,7 @@ class SysCommands:
             p = self.path(f)
             if not self.fs.isfile(p):
                 self.warn(f"sed: can't read {f}: No such file or directory", self.missing_tip(f, "sed"))
-            elif not self.writable(p):
+            elif not self.can_write(p):
                 self.warn(f"sed: couldn't open temporary file {self.fs.parent(p)}/sedX1y2Z3: Permission denied")
             else:
                 if inplace:
@@ -297,7 +328,7 @@ class SysCommands:
                 self.warn(f"tee: {f}: Is a directory")
             elif not self.fs.isdir(self.fs.parent(p)):
                 self.warn(f"tee: {f}: No such file or directory", "the folder does not exist yet (see man mkdir)")
-            elif not self.writable(p):
+            elif not self.can_write(p):
                 self.warn(f"tee: {f}: Permission denied")
             elif "a" in o and self.fs.isfile(p):
                 self.append_file(p, stdin)
@@ -596,8 +627,7 @@ class SysCommands:
             raise ShellError(f"ssh: connect to host {host} port 22: Connection timed out", 255,
                              tip="the host does not answer: is it down? (ping it)")
         if not command:
-            raise ShellError("ssh: an interactive login is not available in this practice shell", 1,
-                             tip=f"run one command on the server instead: ssh {user + '@' if user else ''}{host} COMMAND")
+            return self.enter_session(host, user or USER)
         first, *rest = [seg.strip() for seg in command.split(" | ")]
         table = {"hostname": host, "whoami": user or USER, "date": NOW,
                  "uptime": " 09:00:01 up 41 days,  3:12,  1 user,  load average: 0.21, 0.18, 0.15"}
@@ -608,6 +638,30 @@ class SysCommands:
         for seg in rest:
             out = self.dispatch(shlex.split(seg), out)
         return out
+
+    def enter_session(self, host, user):
+        """ssh HOST with no command: log in. The prompt shows the server, commands run there."""
+        from .vfs import FS
+        self.sessions.append({"host": self.hostname, "fs": self.fs, "cwd": self.cwd, "oldpwd": self.oldpwd, "env": self.env,
+                              "procs": self.procs, "svc": self.svc, "listen": self.listen, "venv": self.venv,
+                              "canned": (self.remote or {}).get(host, {}), "to": host})
+        self.fs, self.hostname, self.venv = FS(), host, None
+        self.fs.write("/etc/hostname", host)
+        for folder in ("/var/log/atlas/", HOME + "/.ssh/"):
+            self.fs.mkdirs(folder.rstrip("/"))
+        self.cwd = self.oldpwd = HOME
+        self.env = dict(self.env, HOSTNAME=host, PWD=HOME, OLDPWD=HOME)
+        self.procs, self.svc, self.listen = default_procs(), {}, {}
+        self.tip("you are now on the server: exit (or Ctrl+D) brings you back")
+        return (f"Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-corp x86_64)\n\n  System information as of {NOW}\n\n"
+                f"Last login: Wed Nov 11 17:42:13 2026 from {MY_IP}")
+
+    def leave_session(self):
+        s = self.sessions.pop()
+        self.fs, self.cwd, self.oldpwd, self.env = s["fs"], s["cwd"], s["oldpwd"], s["env"]
+        self.procs, self.svc, self.listen, self.venv = s["procs"], s["svc"], s["listen"], s["venv"]
+        gone, self.hostname = self.hostname, s["host"]
+        return f"logout\nConnection to {gone} closed."
 
     # ---------------------------------------------------------- inspecting files and the machine
     def cmd_stat(self, args, stdin):
@@ -636,7 +690,10 @@ class SysCommands:
         out = []
         for f in args:
             p = self.path(f)
-            if not self.fs.exists(p):
+            raw = self.path(f, follow=False)
+            if raw in self.fs.links:
+                out.append(f"{f}: symbolic link to {self.fs.links[raw]}")
+            elif not self.fs.exists(p):
                 out.append(f"{f}: cannot open `{f}' (No such file or directory)")
             elif self.fs.isdir(p):
                 out.append(f"{f}: directory")

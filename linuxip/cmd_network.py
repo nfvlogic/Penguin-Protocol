@@ -4,18 +4,17 @@ import re
 from urllib.parse import parse_qs, urlsplit
 
 from .core import HOST, MY_IP, NOW, ONLINE, TOKEN, USER, ShellError, c
-from .manual import MAN
+from .manual import MAN, PRACTICE
 
 PROJECTS = [{"id": "NPI-041", "name": "Carton redesign", "stage": "Gate 1", "status": "approved"},
             {"id": "NPI-042", "name": "New leaflet layout", "stage": "Gate 2", "status": "in review"},
             {"id": "NPI-043", "name": "Label update", "stage": "Request", "status": "draft"}]
-INCIDENTS = [("INC-9001", "horizon-tst", "low", "closed"), ("INC-9002", "horizon-db-02", "critical", "closed"),
-             ("INC-9003", "horizon-db-03", "critical", "open"), ("INC-9004", "horizon-prd", "medium", "open"),
-             ("INC-9005", "horizon-db-01", "low", "open")]
+INCIDENTS = [("INC-9001", "atlas-tst", "low", "closed"), ("INC-9002", "atlas-db-02", "critical", "closed"),
+             ("INC-9003", "atlas-db-03", "critical", "open"), ("INC-9004", "atlas-prd", "medium", "open"),
+             ("INC-9005", "atlas-db-01", "low", "open")]
 USERS = [("ana", "admin"), ("ben", "viewer"), ("carla", "approver"), ("dan", "admin"),
          ("eva", "requestor"), ("felix", "viewer"), ("gina", "approver"), ("hugo", "admin"),
          ("iris", "requestor"), ("joan", "approver"), ("kai", "viewer"), ("lena", "admin-request")]
-PRACTICE = {"submit", "check", "hint", "task", "tasks", "reset", "save", "tips", "help"}
 
 
 def compact(obj):
@@ -51,7 +50,7 @@ class NetworkCommands:
         raise ShellError(f'Object "{obj}" is unknown, try "ip help".', 1, tip="try: ip addr or ip route")
 
     def cmd_hostname(self, args, stdin):
-        return MY_IP + " " if "-I" in args else HOST
+        return MY_IP + " " if "-I" in args else self.hostname
 
     def cmd_ping(self, args, stdin):
         o, hosts = self.opts(args, "ping", "q4", with_value="cWi")
@@ -81,10 +80,11 @@ class NetworkCommands:
         return "\n".join(lines)
 
     def cmd_curl(self, args, stdin):
-        headers, flags, urls, out_file, i = {}, set(), [], None, 0
+        headers, flags, urls, out_file, i, write_out = {}, set(), [], None, 0, None
         while i < len(args):
             a = args[i]
-            if a in ("-H", "--header", "-X", "--request", "-d", "--data", "-o", "--output"):
+            if a in ("-H", "--header", "-X", "--request", "-d", "--data", "-o", "--output", "-w", "--write-out", "-u", "--user",
+                     "-A", "--user-agent", "-m", "--max-time", "--connect-timeout", "-e", "--referer", "--data-raw"):
                 if i + 1 >= len(args):
                     raise ShellError(f"curl: option {a}: requires parameter", 2)
                 if a in ("-H", "--header"):
@@ -92,6 +92,8 @@ class NetworkCommands:
                     headers[k.strip().lower()] = v.strip()
                 elif a in ("-o", "--output"):
                     out_file = args[i + 1]
+                elif a in ("-w", "--write-out"):
+                    write_out = args[i + 1]
                 i += 2
                 continue
             if a.startswith("-") and len(a) > 1:
@@ -101,7 +103,7 @@ class NetworkCommands:
             i += 1
         if not urls:
             raise ShellError("curl: no URL specified!\ncurl: try 'curl --help' for more information", 2,
-                             tip="example: curl http://horizon-api/status")
+                             tip="example: curl http://atlas-api/status")
         url = urls[0] if "://" in urls[0] else "http://" + urls[0]
         parts = urlsplit(url)
         host = parts.hostname or ""
@@ -113,25 +115,42 @@ class NetworkCommands:
         if ip != "10.20.30.20" or port == 443:
             raise ShellError(f"curl: (7) Failed to connect to {host} port {port} after 3 ms: Couldn't connect to server",
                              7, tip="the internal API is plain http (not https)" if ip == "10.20.30.20"
-                             else "only horizon-api runs a web server in this network")
+                             else "only atlas-api runs a web server in this network")
         status, body = self.api(parts.path.rstrip("/"), parse_qs(parts.query), headers)
         text = body if isinstance(body, str) else compact(body)
+        code = status.split()[0]
+        if ("f" in flags or "--fail" in flags) and int(code) >= 400:
+            raise ShellError(f"curl: (22) The requested URL returned error: {code}", 22)
+        size = len(text) + 1
         if out_file:
             p = self.open_redirect(">", out_file)
             self.append_file(p, text)
             text = ""
-        if "i" in flags:
-            head = f"HTTP/1.1 {status}\nContent-Type: application/json\nContent-Length: {len(text) + 1}\n"
-            text = (c("32" if status.startswith("2") else "33", head.split("\n")[0]) + "\n" +
+        head = f"HTTP/1.1 {status}\nServer: nginx/1.24.0\nContent-Type: application/json\nContent-Length: {size}\nConnection: keep-alive\n"
+        if "I" in flags:                       # HEAD request: only the headers
+            text = c("32" if code.startswith("2") else "33", head.split("\n")[0]) + "\n" + "\n".join(head.split("\n")[1:])
+        elif "i" in flags:
+            text = (c("32" if code.startswith("2") else "33", head.split("\n")[0]) + "\n" +
                     "\n".join(head.split("\n")[1:]) + "\n" + text)
+        if "v" in flags:
+            verbose = [f"*   Trying {ip}:80...", f"* Connected to {host} ({ip}) port 80", f"> GET {parts.path or '/'} HTTP/1.1",
+                       f"> Host: {host}", "> User-Agent: curl/8.5.0", "> Accept: */*", ">"] + \
+                      ["< " + l for l in head.split("\n") if l] + ["<"]
+            if not self.pipe_out:
+                for line in verbose:
+                    print(c("90", line), flush=True)
+        if write_out:
+            fmt = (write_out.replace("%{http_code}", code).replace("%{size_download}", str(0 if out_file else size))
+                   .replace("%{time_total}", "0.004112").replace("%{url_effective}", url).replace("\\n", "\n"))
+            text = (text + "\n" if text else "") + fmt.rstrip("\n") if not out_file or out_file != "/dev/null" else fmt.rstrip("\n")
         return text
 
     def api(self, path, query, headers):
-        """The simulated Horizon REST API. Returns (status line, body)."""
+        """The simulated Atlas REST API. Returns (status line, body)."""
         authed = headers.get("authorization", "") == f"Bearer {TOKEN}"
         no_auth = ("401 Unauthorized", {"error": 'missing or invalid token. Send header "Authorization: Bearer <token>"'})
         if path == "/status":
-            return "200 OK", {"service": "horizon-api", "status": "up", "version": "1.8.3"}
+            return "200 OK", {"service": "atlas-api", "status": "up", "version": "1.8.3"}
         if path == "/token":
             user = query.get("user", [""])[0]
             if not user:
@@ -174,7 +193,9 @@ class NetworkCommands:
     def cmd_which(self, args, stdin):
         out = []
         for a in args:
-            if a in MAN and a not in PRACTICE and a not in ("cd", "export", "unset", "source", "history", "type", "exit"):
+            if a in MAN and a not in PRACTICE and a not in ("cd", "export", "unset", "source", "history", "type", "exit", "alias",
+                                                              "unalias", "read", "let", "break", "continue", "umask", "pushd",
+                                                              "popd", "dirs", "[[", "help"):
                 if a in ("pip", "flask") and not self.venv:
                     self._status = 1
                     continue

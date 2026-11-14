@@ -175,14 +175,14 @@ class DevCommands:
         head = " * Serving Flask app 'wsgi'\n * Debug mode: off\nTraceback (most recent call last):\n"
         for var in ("DB_HOST", "DB_NAME"):
             if not cfg.get(var):
-                raise ShellError(head + '  File "/home/analyst/horizon/app/__init__.py", line 12, in create_app\n'
+                raise ShellError(head + '  File "/home/analyst/atlas/app/__init__.py", line 12, in create_app\n'
                                  f"    raise RuntimeError(\"{var} is not set\")\nRuntimeError: {var} is not set", 1,
                                  tip="environment variables are set with export NAME=value")
         if cfg["DB_HOST"] not in ("localhost", "127.0.0.1"):
             raise ShellError(head + f"sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (2003, "
                              f"\"Can't connect to MySQL server on '{cfg['DB_HOST']}'\")", 1,
                              tip="for local development the database runs on this machine")
-        if cfg["DB_NAME"] != "horizon_dev":
+        if cfg["DB_NAME"] != "atlas_dev":
             raise ShellError(head + "sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1049, "
                              f"\"Unknown database '{cfg['DB_NAME']}'\")", 1)
         port, i, rest = self.env.get("FLASK_RUN_PORT", "5000"), 0, args[1:]
@@ -394,7 +394,7 @@ class DevCommands:
         if "--oneline" in rest:
             return "\n".join(c("33", cm["hash"]) + (c("36", f" (HEAD -> {self.repo['branch']})") if k == 0 else "") +
                              " " + cm["msg"] for k, cm in enumerate(commits))
-        return "\n\n".join(c("33", f"commit {cm['hash']}{'d41c9e07b2' * 3}"[:47]) + "\nAuthor: Horizon Dev <dev@corp.local>\n"
+        return "\n\n".join(c("33", f"commit {cm['hash']}{'d41c9e07b2' * 3}"[:47]) + "\nAuthor: Atlas Dev <dev@corp.local>\n"
                            "Date:   Thu Nov 12 09:00:00 2026 +0100\n\n    " + cm["msg"] for cm in commits)
 
     def git_cmd_branch(self, rest):
@@ -490,5 +490,5 @@ class DevCommands:
             raise ShellError("fatal: your current branch does not have any commits yet", 128)
         commits = self.repo["branches"][self.repo["branch"]]
         prev = commits[-2]["tree"] if len(commits) > 1 else {}
-        return (c("33", f"commit {head['hash']}") + "\nAuthor: Horizon Dev <dev@corp.local>\n\n    " + head["msg"] +
+        return (c("33", f"commit {head['hash']}") + "\nAuthor: Atlas Dev <dev@corp.local>\n\n    " + head["msg"] +
                 "\n\n" + self.git_diff_text(prev, head["tree"]))

@@ -10,12 +10,12 @@ alembic==1.14.0
 python-dotenv==1.0.1"""
 
 DEPLOY_SH = """#!/bin/bash
-# Pre-deploy check for Horizon
-echo "== Horizon pre-deploy check =="
+# Pre-deploy check for Atlas
+echo "== Atlas pre-deploy check =="
 echo "Checking database..."
-ping -c 2 horizon-db-02
+ping -c 2 atlas-db-02
 echo "Checking API..."
-ping -c 2 horizon-api
+ping -c 2 atlas-api
 echo "Pre-deploy check finished: OK\""""
 
 
@@ -78,20 +78,20 @@ def gen_incident(server, errors):
     return {
         f"incident/2026/11/10/{server}.log": "10:00 ERROR replica lag\n10:05 ERROR replica lag\n10:09 INFO recovered",
         f"incident/2026/11/11/{server}.log": "10:00 INFO query ok\n10:20 ERROR connection reset",
-        "incident/2026/11/12/horizon-db-01.log": "10:00 INFO query ok\n10:01 ERROR connection reset",
+        "incident/2026/11/12/atlas-db-01.log": "10:00 INFO query ok\n10:01 ERROR connection reset",
         f"incident/2026/11/12/{server}.log": "\n".join(log),
-        "incident/2026/11/12/horizon-tst.log": "10:00 INFO 200 /\n10:01 ERROR 500 /requests/new",
+        "incident/2026/11/12/atlas-tst.log": "10:00 INFO 200 /\n10:01 ERROR 500 /requests/new",
         "incident/README.txt": "Server logs, one folder per day: incident/<year>/<month>/<day>/<server>.log",
     }
 
 
 def gen_auth_log():
-    events = ([("Failed", "svc_horizon", "10.20.30.66")] * 14 + [("Failed", "root", "10.20.30.66")] * 6 +
+    events = ([("Failed", "svc_atlas", "10.20.30.66")] * 14 + [("Failed", "root", "10.20.30.66")] * 6 +
               [("Failed", "root", "10.20.30.41")] * 3 + [("Failed", "analyst", "10.20.30.47")] * 2 +
               [("Failed", "admin", "10.20.30.41")] * 4)
     random.Random(21).shuffle(events)
     events.insert(10, ("Accepted", "analyst", "10.20.30.47"))
-    events.append(("Accepted", "svc_horizon", "10.20.30.66"))
+    events.append(("Accepted", "svc_atlas", "10.20.30.66"))
     return "\n".join(f"Nov 12 01:{i * 2 // 60:02d}:{i * 2 % 60:02d} linuxip sshd[{2400 + i}]: {k} password for {u} from {ip}"
                      for i, (k, u, ip) in enumerate(events))
 
@@ -102,7 +102,7 @@ def gen_sprint():
     rng.shuffle(comps)
     rows = ["ticket,component,points"]
     for i, comp in enumerate(comps):
-        rows.append(f"HZN-{1200 + i},{comp},{21 if i == 23 else rng.choice([1, 2, 3, 5, 8, 13])}")
+        rows.append(f"ATL-{1200 + i},{comp},{21 if i == 23 else rng.choice([1, 2, 3, 5, 8, 13])}")
     return "\n".join(rows)
 
 
@@ -117,91 +117,91 @@ def wf(g, rel, text):
 
 
 def setup_702(g):
-    venv = HOME + "/horizon/.venv"
-    wf(g, "horizon/.venv/bin/activate", "# This file must be used with \"source bin/activate\"")
-    wf(g, "horizon/.venv/pyvenv.cfg", "home = /usr/bin\nversion = 3.12.3")
+    venv = HOME + "/atlas/.venv"
+    wf(g, "atlas/.venv/bin/activate", "# This file must be used with \"source bin/activate\"")
+    wf(g, "atlas/.venv/pyvenv.cfg", "home = /usr/bin\nversion = 3.12.3")
     g.fs.mkdirs(venv + "/lib/python3.12/site-packages")
     g.installed[venv] = parse_requirements(REQUIREMENTS)
 
 
 def setup_703(g):
-    g.git_init(HOME + "/horizon")
-    wf(g, "horizon/README.md", "# POPMAPS\nInternal stage-gate app.")
-    wf(g, "horizon/app/routes.py", "def projects():\n    return list_projects()")
-    wf(g, "horizon/app/models.py", "class Project: ...\nclass Request: ...")
-    g.git_commit_all("Initial Horizon import")
-    wf(g, "horizon/app/roles.py", 'ROLES = ["admin", "approver", "viewer", "requestor"]')
+    g.git_init(HOME + "/atlas")
+    wf(g, "atlas/README.md", "# COMPASS\nInternal stage-gate app.")
+    wf(g, "atlas/app/routes.py", "def projects():\n    return list_projects()")
+    wf(g, "atlas/app/models.py", "class Project: ...\nclass Request: ...")
+    g.git_commit_all("Initial Atlas import")
+    wf(g, "atlas/app/roles.py", 'ROLES = ["admin", "approver", "viewer", "requestor"]')
     g.git_commit_all("Add requestor role")
-    wf(g, "horizon/app/forms.py", "trademark_bu = SelectField('Trademark BU')")
+    wf(g, "atlas/app/forms.py", "trademark_bu = SelectField('Trademark BU')")
     g.git_commit_all("Add trademark BU dropdown")
-    wf(g, "horizon/README.md", "# Horizon\nInternal stage-gate app (formerly POPMAPS).")
-    g.git_commit_all("Rename POPMAPS to Horizon")
+    wf(g, "atlas/README.md", "# Atlas\nInternal stage-gate app (formerly COMPASS).")
+    g.git_commit_all("Rename COMPASS to Atlas")
     g.git_switch("feature/requestor-role", create=True)
-    wf(g, "horizon/app/gates.py", "def submit_gate_01(request, user):\n    check_role(user, 'requestor')")
+    wf(g, "atlas/app/gates.py", "def submit_gate_01(request, user):\n    check_role(user, 'requestor')")
     g.git_commit_all("Requestor can submit Gate 01")
-    wf(g, "horizon/app/routes.py", "def projects():\n    return list_projects()\n\n"
+    wf(g, "atlas/app/routes.py", "def projects():\n    return list_projects()\n\n"
                                   "def my_requests():\n    return list_requests(owner=current_user)")
-    wf(g, "horizon/notes_meeting.txt", "Ask the tech lead about Gate 02 rules")
+    wf(g, "atlas/notes_meeting.txt", "Ask the tech lead about Gate 02 rules")
 
 
 def setup_704(g):
-    g.git_init(HOME + "/horizon")
-    wf(g, "horizon/README.md", "# Horizon\nInternal stage-gate app.")
-    wf(g, "horizon/app/routes.py", "def requests_new(): ...")
+    g.git_init(HOME + "/atlas")
+    wf(g, "atlas/README.md", "# Atlas\nInternal stage-gate app.")
+    wf(g, "atlas/app/routes.py", "def requests_new(): ...")
     for n, name in ((38, "add_requestor_role"), (39, "add_scope"), (40, "add_trademark_bu"), (41, "add_bu_dropdown")):
-        wf(g, f"horizon/migrations/00{n}_{name}.py", f"# migration {n}")
-    g.git_commit_all("Initial Horizon import")
-    wf(g, "horizon/requirements.txt", REQUIREMENTS)
+        wf(g, f"atlas/migrations/00{n}_{name}.py", f"# migration {n}")
+    g.git_commit_all("Initial Atlas import")
+    wf(g, "atlas/requirements.txt", REQUIREMENTS)
     g.git_commit_all("Pin requirements")
     g.mark["main_len"] = len(g.repo["branches"]["main"])
 
 
 def setup_705(g):
-    g.git_init(HOME + "/horizon")
-    wf(g, "horizon/config/tst.py", 'DB_HOST = "horizon-db-02"\nDB_NAME = "horizon_tst"')
-    wf(g, "horizon/app/sso.py", "# SSO placeholder")
-    wf(g, "horizon/requirements.txt", REQUIREMENTS)
-    g.git_commit_all("Initial Horizon import")
+    g.git_init(HOME + "/atlas")
+    wf(g, "atlas/config/tst.py", 'DB_HOST = "atlas-db-02"\nDB_NAME = "atlas_tst"')
+    wf(g, "atlas/app/sso.py", "# SSO placeholder")
+    wf(g, "atlas/requirements.txt", REQUIREMENTS)
+    g.git_commit_all("Initial Atlas import")
     g.git_switch("feature/sso", create=True)
-    wf(g, "horizon/app/sso.py", "def saml_login():\n    return redirect(idp_url())")
+    wf(g, "atlas/app/sso.py", "def saml_login():\n    return redirect(idp_url())")
     g.git_commit_all("Add SAML login")
-    wf(g, "horizon/requirements.txt", REQUIREMENTS + "\nrequests==2.32.3")
+    wf(g, "atlas/requirements.txt", REQUIREMENTS + "\nrequests==2.32.3")
     g.git_add(["requirements.txt"])
-    wf(g, "horizon/config/tst.py", 'DB_HOST = "popmaps-db-01"\nDB_NAME = "horizon_tst"')
+    wf(g, "atlas/config/tst.py", 'DB_HOST = "compass-db-01"\nDB_NAME = "atlas_tst"')
 
 
 # ---------------------------------------------------------------- first-level hints (no commands, no answers)
 NUDGES = {
-    "HZN-101": "The welcome file tells you where to look next.",
-    "HZN-102": "Each environment has its own config file. Ignore the legacy folder.",
-    "HZN-103": "Hidden files start with a dot. Look inside the project folder for them.",
-    "HZN-104": "Go to the features folder first. One mkdir option creates a folder and its subfolder at once.",
-    "HZN-105": "Four separate jobs: copy, rename, delete files by pattern, delete a folder.",
-    "HZN-106": "One redirect creates/overwrites a file, the other adds at the end. Quote text with *.",
-    "HZN-207": "Search by file name in all subfolders, then open the one that is not in old/.",
-    "HZN-208": "Search inside every file of the application code for the marker text.",
-    "HZN-209": "Show the lines with the error status code, then hide the monitoring tests.",
-    "HZN-210": "The newest entry is the last line of the file.",
-    "HZN-211": "Count the FAILED lines, but make sure XFAILED is not counted.",
-    "HZN-312": "Take only the number column, sort it, and show what repeats.",
-    "HZN-313": "Keep only the error lines first, then count by path.",
-    "HZN-314": "Read the script, make it executable, run it and save its output.",
-    "HZN-415": "Find the replicas in /etc/hosts and test each one.",
-    "HZN-416": "Hide the resolved alerts, then look up the remaining IP.",
-    "HZN-517": "Call the token URL and read what the error asks for.",
-    "HZN-518": "Call the endpoint without a token first: the error says which header to add.",
-    "HZN-519": "Save the API output to a file, then count exact role matches.",
-    "HZN-520": "Find today's log of that server, then count the ERROR lines.",
-    "HZN-701": "Work inside the project folder, in this order: create the venv, activate it, install, run.",
-    "HZN-702": "flask run tells you which variable is missing. .env.example shows the values.",
-    "HZN-703": "Go into the project folder. One git command answers the first two steps.",
-    "HZN-704": "Create the branch BEFORE you write and commit the file.",
-    "HZN-705": "Compare what is staged with what is not staged.",
-    "HZN-621": "Search the templates for the form; list the migrations to see the last number.",
-    "HZN-622": "Filter the failed lines, take the user field and rank them. Then look at the successful one.",
-    "HZN-623": "Test every Horizon server, then search the load balancer configs for the one that is down.",
-    "HZN-624": "Include the commas in your search so workflow-ui does not match.",
-    "HZN-625": "Use the token on the incidents API and keep lines with both critical and open.",
+    "ATL-101": "The welcome file tells you where to look next.",
+    "ATL-102": "Each environment has its own config file. Ignore the legacy folder.",
+    "ATL-103": "Hidden files start with a dot. Look inside the project folder for them.",
+    "ATL-104": "Go to the features folder first. One mkdir option creates a folder and its subfolder at once.",
+    "ATL-106": "Four separate jobs: copy, rename, delete files by pattern, delete a folder.",
+    "ATL-107": "One redirect creates/overwrites a file, the other adds at the end. Quote text with *.",
+    "ATL-108": "Search by file name in all subfolders, then open the one that is not in old/.",
+    "ATL-109": "Search inside every file of the application code for the marker text.",
+    "ATL-110": "Show the lines with the error status code, then hide the monitoring tests.",
+    "ATL-111": "The newest entry is the last line of the file.",
+    "ATL-112": "Count the FAILED lines, but make sure XFAILED is not counted.",
+    "ATL-114": "Take only the number column, sort it, and show what repeats.",
+    "ATL-115": "Keep only the error lines first, then count by path.",
+    "ATL-116": "Read the script, make it executable, run it and save its output.",
+    "ATL-122": "Find the replicas in /etc/hosts and test each one.",
+    "ATL-123": "Hide the resolved alerts, then look up the remaining IP.",
+    "ATL-125": "Call the token URL and read what the error asks for.",
+    "ATL-126": "Call the endpoint without a token first: the error says which header to add.",
+    "ATL-127": "Save the API output to a file, then count exact role matches.",
+    "ATL-128": "Find today's log of that server, then count the ERROR lines.",
+    "ATL-129": "Work inside the project folder, in this order: create the venv, activate it, install, run.",
+    "ATL-130": "flask run tells you which variable is missing. .env.example shows the values.",
+    "ATL-131": "Go into the project folder. One git command answers the first two steps.",
+    "ATL-132": "Create the branch BEFORE you write and commit the file.",
+    "ATL-133": "Compare what is staged with what is not staged.",
+    "ATL-143": "Search the templates for the form; list the migrations to see the last number.",
+    "ATL-144": "Filter the failed lines, take the user field and rank them. Then look at the successful one.",
+    "ATL-145": "Test every Atlas server, then search the load balancer configs for the one that is down.",
+    "ATL-146": "Include the commas in your search so workflow-ui does not match.",
+    "ATL-147": "Use the token on the incidents API and keep lines with both critical and open.",
 }
 
 
@@ -220,8 +220,8 @@ EXPORT_ROWS = gen_export()
 EXPORT_OPEN = str(sum(r.endswith(",open") for r in EXPORT_ROWS))
 EXPORT_TEXT = "\r\n".join(EXPORT_ROWS)
 
-TST_CONFIG = 'DB_HOST = "horizon-db-02"\nDB_URL = "mysql+pymysql://horizon@horizon-db-02/horizon_tst"\nDB_NAME = "horizon_tst"\nDEBUG = True'
-TST_CONFIG_NEW = TST_CONFIG.replace("horizon-db-02", "horizon-db-new")
+TST_CONFIG = 'DB_HOST = "atlas-db-02"\nDB_URL = "mysql+pymysql://atlas@atlas-db-02/atlas_tst"\nDB_NAME = "atlas_tst"\nDEBUG = True'
+TST_CONFIG_NEW = TST_CONFIG.replace("atlas-db-02", "atlas-db-new")
 
 
 def gen_traffic():
@@ -267,14 +267,14 @@ DF_OK = """Filesystem      Size  Used Avail Use% Mounted on
 /dev/sdb1        20G  3.1G   16G  17% /var/log
 tmpfs           3.9G     0  3.9G   0% /dev/shm"""
 LOGDIR_PRD = """total 8231228
--rw-r--r-- 1 horizon horizon      48211 Nov 12 09:00 app.log
--rw-r--r-- 1 horizon horizon 8429356811 Nov 12 09:00 debug.log
--rw-r--r-- 1 horizon horizon      91234 Nov 11 23:59 app.log.1"""
+-rw-r--r-- 1 atlas atlas      48211 Nov 12 09:00 app.log
+-rw-r--r-- 1 atlas atlas 8429356811 Nov 12 09:00 debug.log
+-rw-r--r-- 1 atlas atlas      91234 Nov 11 23:59 app.log.1"""
 
 
 def setup_417(g):
-    g.remote = {"horizon-prd": {"df -h": DF_PRD, "ls -l /var/log/horizon": LOGDIR_PRD},
-                "horizon-tst": {"df -h": DF_OK}}
+    g.remote = {"atlas-prd": {"df -h": DF_PRD, "ls -l /var/log/atlas": LOGDIR_PRD},
+                "atlas-tst": {"df -h": DF_OK}}
 
 
 def setup_801(g):
@@ -288,30 +288,67 @@ def setup_801(g):
 
 
 def setup_802(g):
-    g.fs.set_mode(HOME + "/horizon/.env", 0o666)
-    g.fs.set_mode(HOME + "/horizon/scripts/deploy.sh", 0o644)
-    g.fs.set_mode(HOME + "/horizon/config/prd.py", 0o666)
+    g.fs.set_mode(HOME + "/atlas/.env", 0o666)
+    g.fs.set_mode(HOME + "/atlas/scripts/deploy.sh", 0o644)
+    g.fs.set_mode(HOME + "/atlas/config/prd.py", 0o666)
 
 
 def readable_conf(g):
-    return bool(g.fs.mode(HOME + "/horizon/api.conf") & 0o400)
+    return bool(g.fs.mode(HOME + "/atlas/api.conf") & 0o400)
 
 
 def setup_803(g):
-    path = HOME + "/horizon/api.conf"
+    path = HOME + "/atlas/api.conf"
     g.fs.set_mode(path, 0o200)
     denied = f"ERROR cannot read {path}: Permission denied"
-    g.svc["horizon-api"] = {
-        "desc": "Horizon API (Flask)", "state": "failed", "pid": 4410,
-        "exec": HOME + "/horizon/.venv/bin/flask run --port 5050",
-        "journal": [("08:58:40", "Started Horizon API (Flask)."), ("08:58:41", denied),
-                    ("08:58:41", "horizon-api.service: Main process exited, code=exited, status=1/FAILURE"),
-                    ("08:58:41", "horizon-api.service: Failed with result 'exit-code'.")],
-        "start": lambda gg: [] if readable_conf(gg) else [denied, "horizon-api.service: Failed with result 'exit-code'."]}
+    g.svc["atlas-api"] = {
+        "desc": "Atlas API (Flask)", "state": "failed", "pid": 4410,
+        "exec": HOME + "/atlas/.venv/bin/flask run --port 5050",
+        "journal": [("08:58:40", "Started Atlas API (Flask)."), ("08:58:41", denied),
+                    ("08:58:41", "atlas-api.service: Main process exited, code=exited, status=1/FAILURE"),
+                    ("08:58:41", "atlas-api.service: Failed with result 'exit-code'.")],
+        "start": lambda gg: [] if readable_conf(gg) else [denied, "atlas-api.service: Failed with result 'exit-code'."]}
 
 
 def setup_805(g):
     setup_702(g)
-    g.env.update({"DB_HOST": "localhost", "DB_NAME": "horizon_dev"})
+    g.env.update({"DB_HOST": "localhost", "DB_NAME": "atlas_dev"})
     g.procs[4388] = {"user": HOME.rsplit("/", 1)[-1], "cpu": 0.1, "mem": 0.6, "cmd": "python3 -m http.server 5050", "start": "08:20"}
     g.listen[5050] = 4388
+
+
+NUDGES.update({
+    "ATL-139": "A for loop can walk through the names. ping succeeds or fails: use && and || to print up or down.",
+    "ATL-140": "List with find first. Archive with tar, pasting find's answer in with $( ). Delete only after the archive exists.",
+    "ATL-141": "readlink shows the target. To replace a link that points to a folder you need an extra ln option.",
+    "ATL-142": "Two streams: output and errors. One redirect each, or send the errors to the same place as the output.",
+    "ATL-105": "Two jobs: copy the three files into the backup folder, then move the migration to its new name.",
+    "ATL-113": "One grep option lists only file names. Another limits the search to files with a certain name pattern.",
+    "ATL-117": "Look at the file with a command that shows hidden characters. One command can delete a given character.",
+    "ATL-118": "There is a command that compares two files line by line. Lines with < and > are the differences.",
+    "ATL-119": "Backup first. Then sed can replace text inside a file: look at its option for changing the file itself.",
+    "ATL-120": "awk can test one column and print another. For the total, add the column up and print it at the END.",
+    "ATL-121": "Tell awk the columns are separated by commas. A total per name needs an array.",
+    "ATL-124": "You can run one command on another server through ssh. Ask it about its disks first.",
+    "ATL-134": "List all processes with their CPU use, then sort by that column. Stopping a process needs its number.",
+    "ATL-135": "The long listing shows permissions. Three digits set them for owner, group and everybody else.",
+    "ATL-136": "Ask the service how it is doing, then read its log. The cause is written there.",
+    "ATL-137": "One tar command creates the archive, another lists it, a third extracts into a folder.",
+    "ATL-138": "Activate the venv inside the project folder, start it and read the error. Then find which process listens on that port.",
+})
+
+
+HOST_REPORT = ["atlas-api up", "atlas-tst up", "atlas-pre down", "atlas-prd up", "atlas-db-01 down", "atlas-db-02 up"]
+LOG_BIG = "\n".join(f"2026-11-12 08:{i:02d}:00 INFO request handled" for i in range(60))
+LOG_SMALL = "2026-11-12 08:00:00 INFO ok"
+BIG_LOGS = ["logs/app-1.log", "logs/app-3.log", "logs/app-5.log"]
+NIGHTLY = '#!/bin/bash\necho "backup started"\nls /nonexistent\necho "backup finished"'
+NIGHTLY_ERROR = "ls: cannot access '/nonexistent': No such file or directory"
+
+
+def setup_release(g):
+    g.fs.links[HOME + "/current"] = "releases/v1.8.2"
+
+
+def setup_nightly(g):
+    g.fs.set_mode(HOME + "/nightly.sh", 0o755)

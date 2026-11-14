@@ -1,7 +1,7 @@
-<h1 align="center">🐧 Penguin Protocol</h1>
+<h1 align="center">Penguin Protocol</h1>
 
 <p align="center"><b>Learn Linux by doing the job.</b><br>
-A practice shell with 42 realistic tickets, from your first <code>ls</code> to debugging a live incident.</p>
+A practice shell with 47 realistic tickets, from your first <code>ls</code> to debugging a live incident.</p>
 
 ---
 

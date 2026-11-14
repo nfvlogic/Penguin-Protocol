@@ -6,6 +6,8 @@ import sys
 import time
 
 from .cmd_dev import DevCommands
+from .cmd_shell import ShellCommands
+from .compound import CompoundCommands, needs_more
 from .cmd_files import FileCommands
 from .cmd_network import NetworkCommands
 from .cmd_text import TextCommands
@@ -13,7 +15,7 @@ from .cmd_sys import SysCommands, default_procs
 from .cmd_tickets import TicketCommands
 from .core import HOME, HOST, MY_IP, NOW, TTY, USER, ShellError, c, plain
 from .manual import MAN
-from .parser import parse, split_lists, tokenize
+from .parser import parse, scan, split_lists, tokenize
 from .tickets import TOTAL
 from .vfs import FS
 
@@ -24,10 +26,12 @@ EXTRA = {"apt", "apt-get", "printenv", "whatis", "nano", "vim", "vi", "code"}
 WINDOWS = {"cls": "clear", "ipconfig": "ip addr", "del": "rm", "copy": "cp", "move": "mv",
            "ren": "mv", "md": "mkdir -p", "findstr": "grep", "tasklist": "ps", "rd": "rm -r",
            "systeminfo": "uname -a", "where": "which"}
-BUILTINS = {"cd", "export", "unset", "source", "history", "type", "exit", "help", "echo", "pwd"}
+BUILTINS = {"cd", "export", "unset", "source", "history", "type", "exit", "help", "echo", "pwd", "printf", "alias",
+            "unalias", "read", "let", "test", "[", "[[", "break", "continue", "umask", "pushd", "popd", "dirs"}
 
 
-class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommands, TicketCommands):
+class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommands,
+            TicketCommands):
     def __init__(self):
         self.fs = FS()
         self.cwd = self.oldpwd = HOME
@@ -44,19 +48,30 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
         self.env = {"HOME": HOME, "USER": USER, "SHELL": "/bin/bash", "LANG": "en_US.UTF-8",
                     "PATH": "/usr/local/bin:/usr/bin:/bin", "PWD": HOME, "HOSTNAME": HOST}
         self.procs, self.svc, self.listen, self.remote = default_procs(), {}, {}, {}
-        self.pipeline_cmds = []
+        self.pipeline_cmds, self.capture_stack, self.aliases = [], [], dict(ALIASES)
+        self.heredoc, self.dirstack = None, []
+        self.hostname, self.sessions, self.merging = HOST, [], False
         self.venv, self.installed, self.flask_ran, self.flask_port = None, {}, False, None
         self.repo, self.mark, self.hint_stage, self.ran = None, {}, 0, set()
 
     # ------------------------------------------------------------ output
     def out(self, text):
-        print(text, flush=True)
+        """Standard output: printed, or collected while a $(...) is being captured."""
+        if self.capture_stack:
+            self.capture_stack[-1].append(plain(text))
+        else:
+            print(text, flush=True)
 
     def show_error(self, msg, tip=None):
+        """Error messages go to the screen even inside $(...), like stderr does."""
+        if self.merging and self.capture_stack:     # 2>&1 around a script: errors stay in order with its output
+            if msg:
+                self.out(msg)
+            return
         if msg:  # `false` fails silently, like real Linux
-            self.out(c("31", msg))
+            print(c("31", msg), flush=True)
         if tip and self.tips:
-            self.out(c("90", "  tip: " + tip))
+            print(c("90", "  tip: " + tip), flush=True)
 
     def warn(self, msg, tip=None):
         """A non-fatal error: print it (or send it to 2>), keep the command running."""
@@ -68,8 +83,8 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
 
     def tip(self, text):
         """A learning tip that is not part of the command output."""
-        if self.tips and not self.pipe_out:
-            self.out(c("90", "  tip: " + text))
+        if self.tips and not self.pipe_out and not self.capture_stack:
+            print(c("90", "  tip: " + text), flush=True)
 
     def short_cwd(self):
         if self.cwd == HOME or self.cwd.startswith(HOME + "/"):
@@ -78,17 +93,73 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
 
     def prompt(self):
         venv = f"({self.venv.rsplit('/', 1)[-1]}) " if self.venv else ""
-        return venv + c("1;32", f"{USER}@{HOST}") + ":" + c("1;34", self.short_cwd()) + "$ "
+        return venv + c("1;32", f"{USER}@{self.hostname}") + ":" + c("1;34", self.short_cwd()) + "$ "
 
     def width(self):
         return min(shutil.get_terminal_size((100, 30)).columns - 1, 110) if TTY else 100
 
     # ------------------------------------------------------------ helpers for commands
-    def path(self, arg):
-        return self.fs.norm(arg, self.cwd)
+    def path(self, arg, follow=True):
+        """Absolute path of a typed name. Symbolic links are followed unless follow=False
+        (rm, mv, ln and readlink work on the link itself)."""
+        p = self.fs.norm(arg, self.cwd)
+        return self.fs.follow(p) if follow and self.fs.links else p
 
     def writable(self, p):
         return p == HOME or p.startswith(HOME + "/") or p.startswith("/tmp/") or p == "/dev/null"
+
+    def access(self, p, bit):
+        """May the current user r(4) w(2) or x(1) this path? Your own files use the owner bits,
+        files of root (everything outside your home and /tmp) use the 'others' bits."""
+        mode = self.fs.mode(self.fs.follow(p))
+        mine = self.writable(p) or p == HOME
+        return bool((mode >> 6 if mine else mode) & bit)
+
+    def read_keyboard(self, cmd="cat"):
+        """A command with no file and no pipe reads what you type, until Ctrl+D (like real Linux)."""
+        if self.tips and TTY:
+            print(c("90", f"  tip: {cmd} is waiting for you to type. Press Ctrl+D on an empty line to finish (Ctrl+C cancels)"),
+                  flush=True)
+        lines = []
+        while True:
+            try:
+                lines.append(input())
+            except EOFError:
+                break
+        return "\n".join(lines)
+
+    def read_heredoc(self, line):
+        """cat <<EOF ... EOF : read the lines up to the delimiter. Returns (text, expand_variables)."""
+        m = re.search(r"<<(-?)\s*(['\"]?)([A-Za-z_]\w*)\2", line)
+        if not m:
+            return None
+        strip_tabs, quoted, delim = bool(m.group(1)), bool(m.group(2)), m.group(3)
+        body = []
+        while True:
+            try:
+                more = input("> " if TTY else "")
+            except (EOFError, KeyboardInterrupt):
+                print(f"bash: warning: here-document delimited by end-of-file (wanted `{delim}')")
+                break
+            if not TTY:
+                print("> " + more)
+            if (more.lstrip("\t") if strip_tabs else more) == delim:
+                break
+            body.append(more.lstrip("\t") if strip_tabs else more)
+        return "\n".join(body), not quoted
+
+    def heredoc_text(self):
+        text, expand = self.heredoc or ("", False)
+        if expand:
+            from .parser import tokenize
+            safe = '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+            toks = tokenize(safe, self.env, self.status, self)
+            return toks[0][1] if toks else ""
+        return text
+
+    def can_write(self, p):
+        """May the owner write p? (a file with no w bit is read-only, like after chmod 444)"""
+        return self.writable(p) and (not self.fs.exists(p) or self.access(p, 2))
 
     def suggest(self, arg):
         """If 'arg' exists with a different upper/lower case, return that spelling."""
@@ -159,18 +230,16 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
             raise ShellError(f"{cmd}: {name}: Is a directory", 1, tip=f"{name} is a folder: use ls or cd on it")
         if not self.fs.isfile(p):
             raise ShellError(msg.format(cmd=cmd, name=name), 1, tip=self.missing_tip(name, cmd))
-        if not self.fs.mode(p) & 0o400:
+        if not self.access(p, 4):
             raise ShellError(f"{cmd}: {name}: Permission denied", 1,
-                             tip="the owner has no read (r) permission: see ls -l and man chmod")
+                             tip="you have no read (r) permission: see ls -l and man chmod"
+                             if self.writable(p) else "this file belongs to root: normal users cannot read it (sudo is not available here)")
         return self.fs.d[p]
 
     def gather(self, files, stdin, cmd, example, msg="{cmd}: {name}: No such file or directory"):
         """Text from files (missing ones are reported, the rest continue) or from stdin."""
         if not files:
-            if stdin is None:
-                raise ShellError(f"{cmd}: reading from the keyboard is not supported in this practice shell",
-                                 1, tip=f"give a file or use a pipe, e.g. {example}")
-            return stdin
+            return stdin if stdin is not None else self.read_keyboard(cmd)
         parts = []
         for f in files:
             try:
@@ -192,9 +261,9 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
         if self.running:
             self.save()
 
-    def run_line(self, line):
-        """Run one command line: check the syntax of the whole line first (like bash),
-        then run each part, expanding variables just before it runs."""
+    def run_simple(self, line):
+        """Run one command line (no loops): check the syntax of the whole line first (like bash),
+        then run each part, expanding variables and $(...) just before it runs."""
         try:
             parse(tokenize(line, self.env, self.status))
         except ShellError as e:
@@ -207,7 +276,7 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
             if (connector == "&&" and self.status != 0) or (connector == "||" and self.status == 0):
                 continue
             try:
-                lists = parse(tokenize(text, self.env, self.status))
+                lists = parse(tokenize(text, self.env, self.status, self))
             except ShellError as e:
                 self.show_error(str(e), e.tip)
                 self.status = e.status
@@ -237,8 +306,9 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
         if not self.fs.isdir(self.fs.parent(p)):
             raise ShellError(f"bash: {target}: No such file or directory", 1,
                              tip="the folder for that file does not exist yet (see man mkdir)")
-        if not self.writable(p):
-            raise ShellError(f"bash: {target}: Permission denied", 1)
+        if not self.can_write(p):
+            raise ShellError(f"bash: {target}: Permission denied", 1,
+                             tip="the file is read-only: see ls -l and man chmod" if self.writable(p) else None)
         if op in (">", "2>") or not self.fs.isfile(p):
             self.fs.write(p, "")
         return p
@@ -254,19 +324,29 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
         self.pipeline_cmds = [" ".join(a for a, _ in cmd["argv"]) for cmd in pipeline if cmd["argv"]]  # for ps
         for idx, cmd in enumerate(pipeline):
             last = idx == len(pipeline) - 1
-            outs = [r for r in cmd["redirs"] if r[0] in (">", ">>")]
-            errs = [r for r in cmd["redirs"] if r[0] in ("2>", "2>>")]
-            self.pipe_out = not last or bool(outs)
-            self.err_target = [] if errs else None
+            redirs = []
+            for op, target in cmd["redirs"]:      # &> FILE means  > FILE 2>&1
+                redirs += [(">" if op == "&>" else ">>", target), ("2>&1", None)] if op in ("&>", "&>>") else [(op, target)]
+            outer_err, outer_merging = self.err_target, self.merging
+            merge = any(op == "2>&1" for op, _ in redirs)
+            to_stderr = any(op in ("1>&2", ">&2") for op, _ in redirs)
+            outs = [r for r in redirs if r[0] in (">", ">>")]
+            errs = [r for r in redirs if r[0] in ("2>", "2>>")]
+            self.pipe_out = not last or bool(outs) or bool(self.capture_stack) or merge
+            own_err = [] if (errs or (merge and not self.capture_stack_will_exist(cmd))) else None
+            self.err_target = own_err if own_err is not None else outer_err
+            self.merging = merge or (outer_merging and not errs)
             self._failed, self._status = False, None
             stdin, result, out_path, err_path = (data if idx else None), "", None, None
             try:
-                for op, target in cmd["redirs"]:
+                for op, target in redirs:
                     if op == "<":
                         stdin = self.read_text(target, "bash")
+                    elif op == "<<":
+                        stdin = self.heredoc_text()
                     elif op in (">", ">>"):
                         out_path = self.open_redirect(op, target)
-                    else:
+                    elif op in ("2>", "2>>"):
                         err_path = self.open_redirect(op, target)
                 result = self.dispatch(self.expand(cmd["argv"]), stdin) or ""
                 status = self._status if self._status is not None else (1 if self._failed else 0)
@@ -279,9 +359,14 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
             except Exception as e:  # crash safety: the shell must never die
                 self.show_error(f"bash: internal error: {e}")
                 status = 1
-            if err_path:
-                self.append_file(err_path, "\n".join(self.err_target))
-            self.err_target = None
+            if merge and own_err:              # 2>&1: the error messages join the normal output
+                result = "\n".join(own_err + ([result] if result else []))
+            elif err_path:
+                self.append_file(err_path, "\n".join(own_err))
+            self.err_target, self.merging = outer_err, outer_merging
+            if to_stderr and result:           # >&2: the output goes where error messages go
+                print(c("31", result) if not self.capture_stack else result, flush=True)
+                result = ""
             if self.pipe_out:
                 result = plain(result)
             if out_path:
@@ -293,19 +378,31 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
             self.out(data)
         return status
 
+    def capture_stack_will_exist(self, cmd):
+        """True when the command is a script: its output is collected, so merged errors are written in order."""
+        name = cmd["argv"][0][0] if cmd["argv"] else ""
+        return "/" in name and not name.startswith("/usr/bin/")
+
     def dispatch(self, argv, stdin):
         if not argv:
             return ""
+        if self.sessions and self.sessions[-1].get("canned"):       # inside an ssh session: server-specific answers
+            canned = self.sessions[-1]["canned"]
+            if " ".join(argv) in canned:
+                return canned[" ".join(argv)]
         name, args = argv[0], argv[1:]
         if re.fullmatch(r"[A-Za-z_]\w*=.*", name):  # NAME=value
             k, _, v = name.partition("=")
             self.env[k] = v
             return self.dispatch(args, stdin) if args else ""
-        if name in ALIASES:
-            name, args = ALIASES[name][0], ALIASES[name][1:] + args
+        if name in self.aliases and self.aliases[name]:
+            name, args = self.aliases[name][0], self.aliases[name][1:] + args
         if name == ".":
             name = "source"
         if "/" in name:
+            base = self.fs.follow(self.path(name, follow=False))
+            if base.startswith("/usr/bin/") and self.fs.base(base) in MAN:   # /usr/bin/ls works like ls
+                return self.dispatch([self.fs.base(base)] + args, stdin)
             return self.run_script(name, args)
         if args[:1] == ["--help"] and name in MAN:
             return self.man_page(name, short=True)
@@ -344,23 +441,75 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
         if p not in self.fs.x:
             raise ShellError(f"bash: {name}: Permission denied", 126,
                              tip="the file has no execute (x) permission yet - see man chmod")
-        captured, real_out, piped = [], self.out, self.pipe_out
+        keys = ["0", "#", "@", "*"] + [str(k) for k in range(1, 10)]
+        saved = {k: self.env.get(k) for k in keys}
+        self.env.update({"0": name, "#": str(len(args)), "@": " ".join(args), "*": " ".join(args)})
+        for k, a in enumerate(args[:9], 1):
+            self.env[str(k)] = a
+        for k in range(len(args) + 1, 10):
+            self.env.pop(str(k), None)
+        captured = []
+        piped = self.pipe_out
         if piped:  # output goes to a pipe or a file: collect it instead of printing
-            self.out = captured.append
+            self.capture_stack.append(captured)
         try:
-            for line in self.fs.d[p].splitlines():
-                if line.strip() and not line.strip().startswith("#"):
-                    self.run_line(line)
+            self.run_line(self.fs.d[p])
         finally:
-            self.out, self.pipe_out = real_out, piped
+            if piped:
+                self.capture_stack.pop()
+            self.pipe_out = piped
+            for k, v in saved.items():
+                if v is None:
+                    self.env.pop(k, None)
+                else:
+                    self.env[k] = v
         self.ran.add(p)
         return "\n".join(captured)
+
+    # ------------------------------------------------------------ tab completion
+    def completions(self, buffer, text):
+        """Candidates for Tab: command names in the first position, otherwise files and folders."""
+        before = buffer[:len(buffer) - len(text)]
+        stripped = before.rstrip()
+        first = not stripped or stripped.endswith((";", "|", "&&", "||", "(", "then", "do", "else"))
+        if first and "/" not in text:
+            names = set(MAN) | EXTRA | set(self.aliases) | BUILTINS | {"if", "for", "while", "until"}
+            names -= {"levels", "level", "logout", "pip3"}
+            return sorted(n for n in names if n.startswith(text))
+        folder, _, base = text.rpartition("/")
+        shown_dir = folder + "/" if "/" in text else ""
+        base_dir = self.path(folder or "/") if "/" in text else self.cwd
+        if not self.fs.isdir(base_dir):
+            return []
+        out = []
+        for name, is_dir in self.fs.children(base_dir):
+            if name.startswith(base) and (base.startswith(".") or not name.startswith(".")):
+                out.append(shown_dir + name + ("/" if is_dir else ""))
+        return out
+
+    def setup_completion(self):
+        try:
+            import readline
+        except ImportError:
+            return  # Windows has no readline: Tab simply does not complete there
+        matches = []
+
+        def completer(text, state):
+            if state == 0:
+                matches[:] = self.completions(readline.get_line_buffer(), text)
+            return (matches[state] + ("" if matches[state].endswith("/") else " ")) if state < len(matches) else None
+        readline.set_completer_delims(" \t\n;|&<>=")
+        readline.set_completer(completer)
+        if "libedit" in (readline.__doc__ or ""):   # macOS
+            readline.parse_and_bind("bind ^I rl_complete")
+        else:
+            readline.parse_and_bind("tab: complete")
 
     # ------------------------------------------------------------ main loop
     def banner(self):
         if TTY:
             sys.stdout.write("\x1b[3J\x1b[2J\x1b[H")  # clear screen and scrollback
-        self.out("Welcome to Penguin Protocol 6.1 (GNU/Linux 6.8.0-corp x86_64) - Horizon dev box (simulated)")
+        self.out("Welcome to Penguin Protocol 6.1 (GNU/Linux 6.8.0-corp x86_64) - Atlas dev box (simulated)")
         self.out("")
         self.out(f"  System information as of {NOW}")
         self.out("")
@@ -374,6 +523,8 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
         self.out("Last login: Wed Nov 11 17:42:13 2026 from 10.20.30.5")
 
     def run(self):
+        if TTY:
+            self.setup_completion()
         self.banner()
         if self.load():
             self.out(c("32", "Welcome back! Progress loaded"))
@@ -383,7 +534,7 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
         self.save()
         while self.running:
             if TTY:
-                sys.stdout.write(f"\x1b]0;{USER}@{HOST}: {self.short_cwd()}\x07")
+                sys.stdout.write(f"\x1b]0;{USER}@{self.hostname}: {self.short_cwd()}\x07")
             try:
                 line = input(self.prompt() if TTY else "")
             except KeyboardInterrupt:  # Ctrl+C cancels the line, like bash
@@ -391,6 +542,10 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
                 self.status = 130
                 continue
             except EOFError:           # Ctrl+D (Ctrl+Z Enter on Windows) logs out
+                if self.sessions:
+                    print()
+                    print(self.leave_session())
+                    continue
                 if TTY:
                     try:
                         time.sleep(0.1)  # on Windows Ctrl+C can arrive as EOF first
@@ -401,6 +556,28 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
                 break
             if not TTY:
                 print(self.prompt() + line)
+            if "!!" in line and self.typed:  # history expansion: !! = the previous command
+                line = line.replace("!!", self.typed[-1])
+                print(line)
+            while needs_more(line):         # unfinished quote, loop or pipe: bash shows the > prompt
+                try:
+                    more = input("> " if TTY else "")
+                except KeyboardInterrupt:
+                    print("^C")
+                    line = ""
+                    break
+                except EOFError:
+                    quote = [q for _, _, q, _ in scan(line + " ")][-1]
+                    if quote in ("'", '"'):
+                        self.show_error(f"bash: unexpected EOF while looking for matching `{quote}'")
+                    self.show_error("bash: syntax error: unexpected end of file")
+                    line = ""
+                    self.running = False
+                    break
+                if not TTY:
+                    print("> " + more)
+                line = line[:-1] + more if line.endswith("\\") else line + "\n" + more
+            self.heredoc = self.read_heredoc(line) if "<<" in line else None
             self.execute(line)
         self.save(session_open=False)
         print("logout")

@@ -5,6 +5,14 @@ import re
 from .core import ShellError
 
 
+class AwkExit(Exception):
+    pass
+
+
+class AwkNext(Exception):
+    pass
+
+
 class Lit(str):
     """A string typed in the program (compared as text, never as a number)."""
 
@@ -138,6 +146,21 @@ class Parser:
                     self.i += 1
                     args.append(self.expr())
             return (val, args)
+        if kind == "name" and val == "next":
+            self.i += 1
+            return ("next",)
+        if kind == "name" and val == "exit":
+            self.i += 1
+            return ("exit",)
+        if kind == "name" and val == "delete":
+            self.i += 1
+            name = self.eat()[1]
+            key = None
+            if self.is_op("["):
+                self.i += 1
+                key = self.expr()
+                self.eat("]")
+            return ("delete", name, key)
         if kind == "name" and val == "if":
             self.i += 1
             self.eat("(")
@@ -211,6 +234,9 @@ class Parser:
         while self.peek()[0] == "op" and self.peek()[1] in ("==", "!=", "<", ">", "<=", ">="):
             op = self.eat()[1]
             left = ("cmp", op, left, self.concat())
+        if self.peek() == ("name", "in"):
+            self.i += 1
+            left = ("in", left, self.eat()[1])
         return left
 
     def concat(self):
@@ -282,7 +308,8 @@ class Parser:
                 key = self.expr()
                 self.eat("]")
                 return ("index", val, key)
-            if self.is_op("(") and val in ("length", "substr", "toupper", "tolower", "int", "sprintf"):
+            if self.is_op("(") and val in ("length", "substr", "toupper", "tolower", "int", "sprintf", "sub", "gsub",
+                                           "split", "index", "match", "sqrt"):
                 self.i += 1
                 args = []
                 if not self.is_op(")"):
@@ -335,7 +362,17 @@ class Interp:
             return self.arrays.setdefault(n[1], {}).get(to_str(self.ev(n[2])), "")
         if k == "regex":
             return 1 if re.search(n[1], self.fields[0]) else 0
+        if k == "in":
+            return 1 if to_str(self.ev(n[1])) in self.arrays.get(n[2], {}) else 0
         if k == "call":
+            if n[1] in ("sub", "gsub"):
+                return self.substitute(n[1], n[2])
+            if n[1] == "split":
+                text = to_str(self.ev(n[2][0]))
+                sep = to_str(self.ev(n[2][2])) if len(n[2]) > 2 else self.vars["FS"]
+                parts = text.split() if sep == " " else (text.split(sep) if len(sep) == 1 else re.split(sep, text))
+                self.arrays[n[2][1][1]] = {str(k + 1): v for k, v in enumerate(parts)}
+                return len(parts)
             return self.call(n[1], [self.ev(a) for a in n[2]])
         if k == "neg":
             return -to_num(self.ev(n[1]))
@@ -385,7 +422,30 @@ class Interp:
         elif target[0] == "index":
             self.arrays.setdefault(target[1], {})[to_str(self.ev(target[2]))] = val
         else:
-            raise ShellError("awk: assigning to fields ($N = ...) is not supported here", 2)
+            self.set_field(int(to_num(self.ev(target[1]))), to_str(val))
+
+    def set_field(self, n, text):
+        if n == 0:
+            self.set_record(text)
+            return
+        while len(self.fields) <= n:
+            self.fields.append("")
+        self.fields[n] = text
+        self.vars["NF"] = len(self.fields) - 1
+        self.fields[0] = self.vars["OFS"].join(self.fields[1:])
+
+    def substitute(self, name, args):
+        pattern = args[0]
+        rx = re.compile(pattern[1] if pattern[0] == "regex" else to_str(self.ev(pattern)))
+        repl = to_str(self.ev(args[1]))
+        target = args[2] if len(args) > 2 else ("field", ("const", 0))
+
+        def one(m):
+            return re.sub(r"\\&|&", lambda x: "&" if x.group(0) == "\\&" else m.group(0), repl)
+        new, count = rx.subn(one, to_str(self.ev(target)), 0 if name == "gsub" else 1)
+        if count:
+            self.store(target, new)
+        return count
 
     def call(self, name, a):
         if name == "length":
@@ -402,6 +462,14 @@ class Interp:
             return s[start - 1:start - 1 + int(to_num(a[2]))] if len(a) > 2 else s[start - 1:]
         if name == "sprintf":
             return self.fmt(a)
+        if name == "index":
+            return to_str(a[0]).find(to_str(a[1])) + 1
+        if name == "sqrt":
+            return to_num(a[0]) ** 0.5
+        if name == "match":
+            m = re.search(to_str(a[1]), to_str(a[0]))
+            self.vars["RSTART"], self.vars["RLENGTH"] = (m.start() + 1, m.end() - m.start()) if m else (0, -1)
+            return self.vars["RSTART"]
         return ""
 
     def fmt(self, a):
@@ -434,6 +502,15 @@ class Interp:
                 self.out.append(self.fmt([self.ev(a) for a in st[1]]))
             elif k == "expr":
                 self.ev(st[1])
+            elif k == "next":
+                raise AwkNext()
+            elif k == "exit":
+                raise AwkExit()
+            elif k == "delete":
+                if st[2] is None:
+                    self.arrays[st[1]] = {}
+                else:
+                    self.arrays.get(st[1], {}).pop(to_str(self.ev(st[2])), None)
             elif k == "if":
                 if truthy(self.ev(st[1])):
                     self.run([st[2]])
@@ -449,18 +526,33 @@ def run_awk(program, texts, fs=" ", assigns=None):
     """Run an awk program over the given texts (one per file) and return the output text."""
     items = Parser(tokenize(program)).program()
     it = Interp(fs, assigns or {})
-    for typ, _, body in items:
-        if typ == "BEGIN":
-            it.run(body)
+    done = False
+    try:
+        for typ, _, body in items:
+            if typ == "BEGIN":
+                it.run(body)
+    except AwkExit:
+        done = True
     for text in texts:
+        if done:
+            break
         for line in (text[:-1] if text.endswith("\n") else text).split("\n") if text else []:
             it.vars["NR"] += 1
             it.set_record(line)
-            for typ, pat, body in items:
-                if typ == "RULE" and (pat is None or truthy(it.ev(pat))):
-                    it.run(body)
-    for typ, _, body in items:
-        if typ == "END":
-            it.run(body)
+            try:
+                for typ, pat, body in items:
+                    if typ == "RULE" and (pat is None or truthy(it.ev(pat))):
+                        it.run(body)
+            except AwkNext:
+                continue
+            except AwkExit:
+                done = True
+                break
+    try:
+        for typ, _, body in items:
+            if typ == "END":
+                it.run(body)
+    except AwkExit:
+        pass
     text = "".join(it.out)
     return text[:-1] if text.endswith("\n") else text   # the shell adds the final newline

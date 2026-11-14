@@ -8,20 +8,20 @@ SAVE_FILE = os.environ.get("LINUXIP_SAVE") or os.path.join(ROOT, "linuxip_save.j
 
 USER, HOST, MY_IP = "analyst", "linuxip", "10.20.30.47"
 HOME = "/home/analyst"
-TOKEN = "hzn-4821"
-API = "http://horizon-api"
+TOKEN = "atl-4821"
+API = "http://atlas-api"
 NOW = "Thu Nov 12 09:00:01 CET 2026"
 
 HOSTS = """127.0.0.1     localhost
 10.20.30.47   linuxip
 10.20.30.1    gateway
-10.20.30.11   horizon-db-01
-10.20.30.12   horizon-db-02
-10.20.30.13   horizon-db-03
-10.20.30.20   horizon-api
-10.20.30.31   horizon-tst
-10.20.30.32   horizon-pre
-10.20.30.33   horizon-prd
+10.20.30.11   atlas-db-01
+10.20.30.12   atlas-db-02
+10.20.30.13   atlas-db-03
+10.20.30.20   atlas-api
+10.20.30.31   atlas-tst
+10.20.30.32   atlas-pre
+10.20.30.33   atlas-prd
 10.20.30.66   guest-laptop-07"""
 ONLINE = {"127.0.0.1", "10.20.30.47", "10.20.30.1", "10.20.30.12", "10.20.30.20",
           "10.20.30.31", "10.20.30.33"}

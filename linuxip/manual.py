@@ -3,6 +3,9 @@
 Examples here use generic names on purpose: they never show a ticket's solution.
 """
 
+# Commands that exist only in this practice shell (not on real Linux)
+PRACTICE = {"submit", "check", "hint", "task", "tasks", "reset", "save", "tips", "help", "clearance", "unlock"}
+
 # name: (description, synopsis, [options])
 MAN = {
     "sed": ("stream editor: change or print lines of text", "sed [-n] [-i] [-E] 's/OLD/NEW/[g]' [FILE]...",
@@ -46,6 +49,37 @@ MAN = {
     "file": ("tell what kind of file something is", "file FILE...", ["shows things like Windows line endings (CRLF)"]),
     "uptime": ("how long the machine has been running and its load", "uptime", []),
     "free": ("show memory usage", "free [-h]", ["-h  human readable (Gi, Mi)"]),
+    "printf": ("format and print text (a builtin)", "printf FORMAT [ARGUMENT]...",
+               ["%s text  %d number  %f decimal  %x hex   \\n newline  \\t tab", "the format is reused until every argument is used"]),
+    "alias": ("make a short name for a command", "alias [NAME='COMMAND ARGS']", ["alias ll='ls -l'   then   ll works as ls -l", "alias alone lists them"]),
+    "unalias": ("remove an alias", "unalias NAME", []),
+    "seq": ("print a sequence of numbers", "seq [FIRST [STEP]] LAST", ["seq 5 = 1 2 3 4 5   seq 2 2 10 = 2 4 6 8 10"]),
+    "nl": ("number the lines of a file", "nl [-b a] [FILE]", ["-b a  number empty lines too"]),
+    "rev": ("reverse every line character by character", "rev [FILE]", []),
+    "ln": ("make links between files", "ln -s TARGET LINKNAME",
+           ["-s  symbolic link: LINKNAME points to TARGET (ls -l shows LINKNAME -> TARGET)", "-f  replace an existing link",
+            "-n  if LINKNAME is a link to a folder, replace the link itself (without -n the new link is made inside that folder)"]),
+    "readlink": ("print where a symbolic link points", "readlink [-f] LINK", ["-f  the full real path"]),
+    "top": ("show the busiest processes (here: one snapshot)", "top [-b -n 1]", ["%CPU and %MEM columns show who uses the machine"]),
+    "pushd": ("go to a folder and remember the one you left", "pushd DIR", ["popd goes back, dirs shows the stack"]),
+    "popd": ("go back to the folder remembered by pushd", "popd", []),
+    "dirs": ("show the pushd/popd folder stack", "dirs", []),
+    "tac": ("print a file backwards, last line first", "tac [FILE]", []),
+    "date": ("show the date and time", "date [+FORMAT] [-u]", ["+%F  2026-11-12   +%H:%M  hours:minutes   +%s  seconds since 1970", "-u  in UTC"]),
+    "umask": ("show the default permission mask", "umask", []),
+    "chown": ("change the owner of a file (needs root)", "chown OWNER[:GROUP] FILE...", []),
+    "chgrp": ("change the group of a file (needs root)", "chgrp GROUP FILE...", []),
+    "test": ("check conditions: files, text, numbers (same as [ ])", "test EXPRESSION   or   [ EXPRESSION ]",
+             ["-f FILE file exists   -d DIR folder exists   -e exists   -s not empty   -r -w -x permissions",
+              "-z TEXT empty   -n TEXT not empty   A = B equal text   A != B different text",
+              "N -eq M equal   -ne  -lt  -gt  -le  -ge   (numbers)   ! NOT   -a AND   -o OR",
+              "exit status 0 = true, 1 = false: use it with if and while"]),
+    "[": ("check conditions: same as test, the last argument must be ]", "[ EXPRESSION ]", ["see man test"]),
+    "[[": ("check conditions (bash): like [ with patterns: [[ $x == a* ]]", "[[ EXPRESSION ]]", ["see man test"]),
+    "read": ("read a line from the keyboard into a variable", "read [-p PROMPT] NAME", []),
+    "let": ("do arithmetic on variables", "let NAME=EXPRESSION", ["let n=n+1   same as   n=$((n+1))"]),
+    "break": ("leave a for/while loop", "break", []),
+    "continue": ("jump to the next round of a loop", "continue", []),
     "true": ("do nothing, successfully (exit status 0)", "true", []),
     "false": ("do nothing, unsuccessfully (exit status 1)", "false", []),
     "pwd": ("print name of current/working directory", "pwd", []),
@@ -140,12 +174,69 @@ MAN = {
     "tips": ("[practice] turn the learning tips under errors on or off", "tips on | tips off", []),
 }
 
-HELP = """FILES      pwd  cd [dir|..|-|~]  ls [-a -l -h]  tree  cat  less  head/tail -n N  wc -l
+
+# The options of the most used commands (override the short entries above)
+MAN.update({
+    "ls": ("list directory contents", "ls [-a] [-A] [-l] [-h] [-1] [-d] [-R] [-t] [-S] [-r] [-F] [FILE]...",
+           ["-a  do not hide entries starting with .   -A  same, without . and ..", "-l  long listing: permissions, links, owner, size, date",
+            "-h  sizes like 1.2K (with -l)   -1  one entry per line", "-d  list the folder itself, not what is inside",
+            "-R  recursive: every folder below too", "-t  newest first   -S  biggest first   -r  reverse the order",
+            "-F  add / to folders and * to programs", "in -l, the first letter is d (folder), - (file) or l (link: name -> target)"]),
+    "cat": ("concatenate files and print on the standard output", "cat [-n] [-A] [FILE]...",
+            ["-n  number all output lines", "-A  show hidden characters: $ end of line, ^M Windows line ending, ^I tab",
+             "with no file, cat reads what you type until Ctrl+D"]),
+    "head": ("output the first part of files", "head [-n N] [-c N] [-q] [-v] [FILE]...",
+             ["-n N  the first N lines (default 10); -n -N = all but the last N", "-c N  the first N bytes",
+              "-q / -v  never / always print the file name header"]),
+    "tail": ("output the last part of files", "tail [-n N] [-c N] [-f] [FILE]...",
+             ["-n N  the last N lines (default 10); -n +N = from line N to the end", "-c N  the last N bytes",
+              "-f  keep waiting for new lines (here: shows the end and stops)"]),
+    "wc": ("print newline, word, and byte counts", "wc [-l] [-w] [-c] [-m] [FILE]...",
+           ["-l  lines", "-w  words", "-c  bytes", "-m  characters"]),
+    "echo": ("display a line of text", "echo [-n] [-e] [STRING]...",
+             ["-n  no trailing newline", "-e  understand \\n (newline), \\t (tab), \\\\ (backslash)",
+              "tip: echo text > file writes, >> appends"]),
+    "touch": ("create an empty file (or update its time)", "touch [-c] FILE...", ["-c  do not create files that do not exist"]),
+    "cp": ("copy files and directories", "cp [-r] [-i] [-v] SOURCE... DEST",
+           ["-r  copy directories recursively", "DEST can be a new name or a folder", "a link is followed: the copy is of the target"]),
+    "chmod": ("change file mode bits", "chmod MODE FILE...",
+              ["numbers: 3 digits for owner, group, others; r=4 w=2 x=1 added up (755 = rwxr-xr-x, 644 = rw-r--r--, 600 = rw-------)",
+               "letters: who (u g o a) + or - or = what (r w x):  u+x   g-w   o-rwx   a=r   u+x,g-w",
+               "check the result with ls -l or stat"]),
+    "find": ("search for files in a directory hierarchy", "find [DIR...] [TESTS] [ACTION]",
+             ["-name P / -iname P  file name matches P (quote wildcards: \"*.txt\"); -path P the whole path",
+              "-type f|d|l  files, folders, links     -empty  empty files or folders     -perm 644  exact permissions",
+              "-size +1k  bigger than 1 KiB (-1k smaller; c bytes, k, M, G)     -mtime -1  changed less than 1 day ago",
+              "-maxdepth N / -mindepth N  how deep to look     ! TEST  NOT     TEST -o TEST  OR     \\( ... \\)  grouping",
+              "-exec CMD {} \\;  run CMD for every match ({} = the file); with + all matches at once",
+              "-delete  remove the matches     -print  print them (the default)"]),
+    "grep": ("print lines that match patterns", "grep [OPTIONS] PATTERN [FILE]...",
+             ["-i  ignore case (grep is case-sensitive by default!)", "-v  invert: lines that do NOT match",
+              "-c  print only a count of matching lines", "-n  prefix each line with its line number",
+              "-r  read all files under each directory     --include=GLOB / --exclude=GLOB  only / not these file names",
+              "-l / -L  only names of files with / without a match", "-w  whole words only     -x  whole lines only",
+              "-E  extended regex (a|b, +, ?)     -F  plain text     -o  only the matching part",
+              "-e P  a pattern (repeat -e for several)     -m N  stop after N matches     -s  hide file errors",
+              "-A N / -B N / -C N  also show N lines after / before / around each match", "-h / -H  hide / show file names"]),
+    "sort": ("sort lines of text files", "sort [-n] [-h] [-r] [-u] [-f] [-t SEP -k N] [FILE]...",
+             ["-n  compare as numbers   -h  as sizes (1K 2M)", "-r  reverse   -u  unique lines only   -f  ignore case",
+              "-t SEP -k N  sort by field N"]),
+    "curl": ("transfer a URL (call web servers and APIs)", "curl [-i] [-I] [-s] [-f] [-H HEADER] [-o FILE] [-w FORMAT] URL",
+             ["-i  include the HTTP status line and headers   -I  only the headers (HEAD request)",
+              "-H  send a header, e.g. -H \"Accept: application/json\"", "-o FILE  write the body to FILE   -s  silent",
+              "-f  fail with an error (exit 22) on HTTP errors   -v  show the request and response headers",
+              "-w FORMAT  print info after the transfer: %{http_code} %{size_download} %{time_total}"]),
+    "uname": ("print system information", "uname [-a] [-s] [-n] [-r] [-m]",
+              ["-a  everything   -s  kernel name   -n  host name   -r  kernel release   -m  machine"]),
+    "id": ("print user and group ids", "id [-u] [-g] [-n]", ["-u  just the user id   -g  group id   -n  names instead of numbers"]),
+})
+
+HELP = """FILES      pwd  cd [dir|..|-|~]  ls [-a -l -h -R -t -S]  tree  cat  less  head/tail -n N -c N  wc -l
            mkdir [-p]  rmdir  touch  cp [-r]  mv  rm [-r -f]  chmod MODE  ./script.sh  du -sh  df -h
-SEARCH     find DIR -name "PATTERN" [-type f|d]   grep [-i -v -c -n -r -l -w -E] PATTERN [FILE]
+SEARCH     find DIR -name "PATTERN" -type f|d -size -mtime -exec ... \\;   grep [-i -v -c -n -r -l -w -E -A -B -C] PATTERN [FILE]
            sort [-n -r -u]  uniq [-c -d -u]  cut -d SEP -f N
 NETWORK    ip addr  hostname -I  ping -c N HOST  curl [-i -H HEADER] URL
-TEXT       sed 's/OLD/NEW/g' FILE  awk '{print $1}' FILE  tr -d '\r'  tee FILE  diff A B  xargs CMD
+TEXT       sed 's/OLD/NEW/g' FILE  awk '{print $1}' FILE  tr -d '\\r'  tee FILE  diff A B  xargs CMD
 SERVERS    ps aux  pgrep  kill [-9] PID  ss -tlnp  systemctl --user status|restart X  journalctl -u X
            ssh user@host CMD  tar -czf|-tzf|-xzf  stat  file  uptime  free -h
 SYSTEM     whoami  id  date  uname -a  which CMD  type CMD  history  clear  sudo
@@ -154,9 +245,12 @@ DEV        git status | log --oneline | diff [--staged] | branch | checkout -b N
            python3 -m venv DIR   source DIR/bin/activate   deactivate
            pip install -r FILE   pip list   flask run [--port N]
            export NAME=value   env   echo $NAME   unset NAME
+SCRIPTING  for f in *.log; do echo $f; done     if [ -f x ]; then echo yes; else echo no; fi
+           while [ $n -lt 3 ]; do n=$((n+1)); done    echo $(date +%F)   echo {a,b}.txt   $((2+3))
+           alias  seq  printf  read  test  [ ]  !! (repeat the last command)   cat <<EOF ... EOF   (Tab completes)
 SHELL      a | b     output of a becomes input of b        cmd > file   save output (>> appends)
            a && b    run b only if a worked                cmd < file   read input from file
-           a || b    run b only if a failed                cmd 2> file  save error messages
+           a || b    run b only if a failed                cmd 2> file  save error messages   cmd 2>&1  errors join the output
            a ; b     run both                              echo $?      exit status of last command
            "quotes" keep spaces and stop * from expanding  # comment
 TICKETS    task  task full  tasks  task N  unlock CODE  clearance  hint  check  submit ANSWER  reset  save  tips on|off  exit

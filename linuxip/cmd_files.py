@@ -2,7 +2,7 @@
 import re
 import fnmatch
 
-from .core import HOME, USER, ShellError, c
+from .core import HOME, USER, ShellError, c, vlen
 
 
 def perm_string(bits):
@@ -57,6 +57,9 @@ class FileCommands:
             tip = ("your home folder is ~ (type cd ~ or just cd)" if target == "home"
                    else self.missing_tip(target, "cd"))
             raise ShellError(f"bash: cd: {target}: No such file or directory", 1, tip=tip)
+        if not self.access(p, 1):
+            raise ShellError(f"bash: cd: {target}: Permission denied", 1,
+                             tip="the folder has no execute (x) permission: see man chmod")
         self.oldpwd, self.cwd = self.cwd, p
         self.env["OLDPWD"], self.env["PWD"] = self.oldpwd, p
         return shown
@@ -64,6 +67,14 @@ class FileCommands:
     # ---------------------------------------------------------- listing
     def entry(self, full, name, is_dir, o):
         """Format one ls entry (short or long)."""
+        if full in self.fs.links:
+            target = self.fs.links[full]
+            shown = c("1;36", name) + (" -> " + target if "l" in o else "")
+            if "F" in o:
+                shown = c("1;36", name) + "@"
+            if "l" not in o:
+                return shown
+            return f"lrwxrwxrwx 1 {USER:<7} {USER:<7} {len(target):>5} Nov 12 09:00 {shown}"
         exe = full in self.fs.x
         shown = c("1;34", name) if is_dir else (c("1;32", name) if exe else name)
         if "F" in o:
@@ -74,18 +85,42 @@ class FileCommands:
         owner = "root" if not self.writable(full) and full != HOME else USER
         size = 4096 if is_dir else len(self.fs.d.get(full, ""))
         size = human(size) if "h" in o else str(size)
-        links = 2 if is_dir else 1
+        links = 2 + sum(1 for _, d in self.fs.children(full) if d) if is_dir else 1
         return f"{perm} {links} {owner:<7} {owner:<7} {size:>5} Nov 12 09:00 {shown}"
 
+    def columns(self, items):
+        """Short ls output: names in columns that fill the terminal, filled top to bottom like GNU ls."""
+        if not items:
+            return ""
+        width, n = self.width(), len(items)
+        for rows in range(1, n + 1):
+            cols = [items[i:i + rows] for i in range(0, n, rows)]
+            widths = [max(vlen(x) for x in col) + 2 for col in cols]
+            if sum(widths) - 2 <= width or rows == n:
+                break
+        lines = []
+        for r in range(rows):
+            cells = [col[r] + " " * (widths[k] - vlen(col[r])) for k, col in enumerate(cols) if r < len(col)]
+            lines.append("".join(cells).rstrip())
+        return "\n".join(lines)
+
     def cmd_ls(self, args, stdin):
-        o, targets = self.opts(args, "ls", "alhAF1dCR")
+        o, targets = self.opts(args, "ls", "alhAF1dCRtSr")
         targets = targets or ["."]
         files, dirs = [], []
         for t in targets:
             p = self.path(t)
-            if self.fs.isfile(p) or ("d" in o and self.fs.isdir(p)):
+            raw = self.path(t, follow=False)
+            if raw in self.fs.links and (not self.fs.isdir(p) or any(k in o for k in "lFd")):
+                files.append((t, raw))     # ls -l shows the link itself (and a dangling link is never an error)
+            elif self.fs.isfile(p) or ("d" in o and self.fs.isdir(p)):
                 files.append((t, p))
             elif self.fs.isdir(p):
+                if not self.access(p, 4):
+                    self.warn(f"ls: cannot open directory '{t}': Permission denied",
+                              "the folder has no read (r) permission: see man chmod" if self.writable(p)
+                              else "this folder belongs to root: normal users cannot open it")
+                    continue
                 dirs.append((t, p))
             else:
                 self.warn(f"ls: cannot access '{t}': No such file or directory", self.missing_tip(t, "ls"))
@@ -96,23 +131,41 @@ class FileCommands:
                     if d and ("a" in o or "A" in o or not n.startswith(".")):
                         yield from expand(t.rstrip("/") + "/" + n, self.fs.join(p, n))
             dirs = [pair for t, p in dirs for pair in expand(t, p)]
-        sep = "\n" if ("l" in o or "1" in o or self.pipe_out) else "  "
-        blocks = []
+        long_or_one = "l" in o or "1" in o or self.pipe_out
+
+        def order(items):
+            if "S" in o:
+                items = sorted(items, key=lambda x: -(4096 if x[2] else len(self.fs.d.get(x[0], ""))))
+            if "r" in o:
+                items = items[::-1]
+            return items
+
+        def blocks(full, is_dir):
+            return 4 if is_dir else (-(-len(self.fs.d.get(full, "")) // 4096) * 4)
+        missing = self._failed          # a name that does not exist: GNU ls exits with 2
+        blocks_out = []
         if files:
-            blocks.append(sep.join(self.entry(p, t, self.fs.isdir(p), o) for t, p in files))
+            ordered = order([(p, t, self.fs.isdir(p)) for t, p in files])
+            shown = [self.entry(p, t, d, o) for p, t, d in ordered]
+            blocks_out.append("\n".join(shown) if long_or_one else self.columns(shown))
         for t, p in dirs:
             items = []
             if "a" in o:
                 items += [(p, ".", True), (self.fs.parent(p), "..", True)]
             items += [(self.fs.join(p, n), n, d) for n, d in self.fs.children(p)
                       if "a" in o or "A" in o or not n.startswith(".")]
-            lines = [self.entry(full, n, d, o) for full, n, d in items]
-            body = ("total " + str(4 * len(items)) + ("\n" if lines else "")) if "l" in o else ""
-            body += sep.join(lines)
+            items = order(items)
+            shown = [self.entry(full, n, d, o) for full, n, d in items]
+            body = ""
+            if "l" in o:
+                body = "total " + str(sum(blocks(full, d) for full, _, d in items)) + ("\n" if shown else "")
+            body += "\n".join(shown) if long_or_one else self.columns(shown)
             if len(targets) > 1 or "R" in o:
                 body = f"{t}:\n{body}"
-            blocks.append(body)
-        return "\n\n".join(b for b in blocks if b)
+            blocks_out.append(body)
+        if missing:
+            self._status = 2
+        return "\n\n".join(b for b in blocks_out if b)
 
     def cmd_dir(self, args, stdin):
         self.tip("dir works on Linux too, but everybody uses ls")
@@ -192,12 +245,13 @@ class FileCommands:
                 self.fs.remove(p)
 
     def cmd_touch(self, args, stdin):
+        o, args = self.opts(args, "touch", "acm", with_value="dtr")
         if not args:
             raise ShellError("touch: missing file operand\nTry 'touch --help' for more information.", 1,
                              tip="example: touch todo.md")
         for n in args:
             p = self.path(n)
-            if self.fs.exists(p):
+            if self.fs.exists(p) or "c" in o:
                 continue
             if not self.fs.isdir(self.fs.parent(p)):
                 self.warn(f"touch: cannot touch '{n}': No such file or directory",
@@ -220,6 +274,57 @@ class FileCommands:
                    else f"mv: cannot move '{self.fs.base(src)}' to '{dest_arg}': No such file or directory")
             raise ShellError(msg, 1, tip="the destination folder does not exist (see man mkdir)")
         return dst
+
+    def cmd_ln(self, args, stdin):
+        o, names = self.opts(args, "ln", "sfnT")
+        if len(names) < 2:
+            raise ShellError(f"ln: missing {'file' if not names else 'destination file'} operand"
+                             f"{' after ' + repr(names[0]) if names else ''}\nTry 'ln --help' for more information.", 1,
+                             tip="example: ln -s /real/file shortcut")
+        *sources, dest = names
+        for s in sources:
+            link = self.path(dest, follow=False)
+            # without -n an existing link to a folder is followed: the new link goes INSIDE that folder
+            if self.fs.isdir(self.path(dest)) and not ("n" in o and self.path(dest, follow=False) in self.fs.links):
+                link = self.fs.join(self.path(dest), self.fs.base(self.path(s, follow=False)))
+            if not self.writable(link) or not self.fs.isdir(self.fs.parent(link)):
+                self.warn(f"ln: failed to create {'symbolic ' if 's' in o else 'hard '}link '{dest}': "
+                          + ("Permission denied" if self.fs.isdir(self.fs.parent(link)) else "No such file or directory"))
+            elif link in self.fs.links or self.fs.exists(link):
+                if "f" in o:
+                    self.fs.remove(link)
+                else:
+                    self.warn(f"ln: failed to create {'symbolic ' if 's' in o else 'hard '}link '{dest}': File exists",
+                              "ln -sf replaces it")
+                    continue
+            if "s" in o:
+                self.fs.links[link] = s
+            else:
+                src = self.path(s)
+                if not self.fs.isfile(src):
+                    self.warn(f"ln: failed to access '{s}': No such file or directory", self.missing_tip(s, "ln"))
+                else:
+                    self.fs.write(link, self.fs.d[src])   # a hard link looks like a second name for the same file
+        return ""
+
+    def cmd_readlink(self, args, stdin):
+        o, names = self.opts(args, "readlink", "fem")
+        if not names:
+            raise ShellError("readlink: missing operand\nTry 'readlink --help' for more information.", 1)
+        out = []
+        for n in names:
+            raw = self.path(n, follow=False)
+            if "f" in o or "e" in o or "m" in o:
+                target = self.fs.follow(raw)
+                if self.fs.exists(target) or "m" in o or "f" in o:
+                    out.append(target)
+                else:
+                    self._status = 1
+            elif raw in self.fs.links:
+                out.append(self.fs.links[raw])
+            else:
+                self._status = 1
+        return "\n".join(out)
 
     def cmd_cp(self, args, stdin):
         o, names = self.opts(args, "cp", "rRfvi")
@@ -259,8 +364,10 @@ class FileCommands:
                              "Try 'mv --help' for more information.", 1, tip="example: mv old.txt new.txt")
         *sources, dest = names
         for s in sources:
-            src = self.path(s)
-            if not self.fs.exists(src):
+            src = self.path(s, follow=False)
+            if src not in self.fs.links:
+                src = self.path(s)
+            if not self.fs.exists(src) and src not in self.fs.links:
                 self.warn(f"mv: cannot stat '{s}': No such file or directory", self.missing_tip(s, "mv"))
                 continue
             dst = self.dest_for("mv", src, dest, len(sources) > 1)
@@ -282,6 +389,10 @@ class FileCommands:
             raise ShellError("rm: missing operand\nTry 'rm --help' for more information.", 1,
                              tip="example: rm old.txt")
         for n in names:
+            p = self.path(n, follow=False)
+            if p in self.fs.links:
+                self.fs.remove(p)
+                continue
             p = self.path(n)
             if p == "/" and recursive:
                 self.warn("rm: it is dangerous to operate recursively on '/'\n"
@@ -321,41 +432,193 @@ class FileCommands:
     # ---------------------------------------------------------- searching / disk
     def cmd_find(self, args, stdin):
         starts, i = [], 0
-        while i < len(args) and not args[i].startswith("-"):
+        while i < len(args) and not (args[i].startswith("-") or args[i] in ("!", "(", ")")):
             starts.append(args[i])
             i += 1
-        tests = []
-        while i < len(args):
-            a = args[i]
-            if a in ("-name", "-iname", "-type"):
-                if i + 1 >= len(args):
-                    raise ShellError(f"find: missing argument to `{a}'", 1)
-                tests.append((a, args[i + 1]))
-                i += 2
-            elif a.startswith("-"):
-                raise ShellError(f"find: unknown predicate `{a}'", 1, tip="this shell supports -name, -iname and -type")
+        expr = args[i:]
+        pos, opts = [0], {"maxdepth": None, "mindepth": 0, "actions": False}
+
+        def need(name):
+            if pos[0] + 1 >= len(expr):
+                raise ShellError(f"find: missing argument to `{name}'", 1)
+            pos[0] += 1
+            return expr[pos[0]]
+
+        def primary():
+            tok = expr[pos[0]]
+            if tok in ("!", "-not"):
+                pos[0] += 1
+                return ("not", primary())
+            if tok == "(":
+                pos[0] += 1
+                node = parse_or()
+                if pos[0] >= len(expr) or expr[pos[0]] != ")":
+                    raise ShellError("find: missing closing ')'", 1)
+                pos[0] += 1
+                return node
+            if tok in ("-name", "-iname", "-path", "-ipath", "-wholename", "-type", "-size", "-mtime", "-mmin", "-atime",
+                       "-ctime", "-perm", "-user", "-group", "-newer"):
+                node = (tok, need(tok))
+            elif tok in ("-maxdepth", "-mindepth"):
+                val = need(tok)
+                if not val.isdigit():
+                    raise ShellError(f"find: Expected a positive decimal integer argument to `{tok}', but got `{val}'", 1)
+                opts[tok[1:]] = int(val)
+                node = ("true", None)
+            elif tok in ("-empty", "-true", "-false", "-print", "-print0", "-delete", "-depth", "-readable", "-writable",
+                         "-executable"):
+                if tok in ("-print", "-print0", "-delete"):
+                    opts["actions"] = True
+                node = (tok, None)
+            elif tok in ("-exec", "-execdir", "-ok"):
+                cmd = []
+                pos[0] += 1
+                while pos[0] < len(expr) and expr[pos[0]] not in (";", "+"):
+                    cmd.append(expr[pos[0]])
+                    pos[0] += 1
+                if pos[0] >= len(expr):
+                    raise ShellError(f"find: missing argument to `{tok}'", 1,
+                                     tip="end the command with \\; (a backslash and a semicolon)")
+                opts["actions"] = True
+                node = ("-exec", (cmd, expr[pos[0]] == "+"))
+            elif tok.startswith("-"):
+                raise ShellError(f"find: unknown predicate `{tok}'", 1,
+                                 tip="supported: -name -iname -path -type -size -mtime -mmin -empty -perm -user -maxdepth "
+                                     "-mindepth -exec -delete -print and ! ( ) -o")
             else:
-                raise ShellError(f"find: paths must precede expression: `{a}'", 1,
+                raise ShellError(f"find: paths must precede expression: `{tok}'", 1,
                                  tip='put wildcards in quotes so the shell does not expand them: find . -name "*.txt"')
-        out = []
+            pos[0] += 1
+            return node
+
+        def parse_and():
+            node = primary()
+            while pos[0] < len(expr) and expr[pos[0]] not in ("-o", "-or", ")"):
+                if expr[pos[0]] in ("-a", "-and"):
+                    pos[0] += 1
+                node = ("and", node, primary())
+            return node
+
+        def parse_or():
+            node = parse_and()
+            while pos[0] < len(expr) and expr[pos[0]] in ("-o", "-or"):
+                pos[0] += 1
+                node = ("or", node, parse_and())
+            return node
+        tree = ("true", None)
+        if expr:
+            tree = parse_or()
+            if pos[0] < len(expr):
+                raise ShellError(f"find: unexpected extra predicate `{expr[pos[0]]}'" if expr[pos[0]] != ")"
+                                 else "find: unmatched ')'", 1)
+        if not opts["actions"]:
+            tree = ("and", tree, ("-print", None))
+        out, batches = [], {}
+
+        def owner_of(p):
+            return "root" if not self.writable(p) and p != HOME else USER
+
+        def test(node, ctx):
+            kind = node[0]
+            if kind == "and":
+                return test(node[1], ctx) and test(node[2], ctx)
+            if kind == "or":
+                return test(node[1], ctx) or test(node[2], ctx)
+            if kind == "not":
+                return not test(node[1], ctx)
+            p, name, shown = ctx["p"], ctx["name"], ctx["shown"]
+            is_dir = self.fs.isdir(p)
+            v = node[1]
+            if kind in ("true", "-true", "-depth"):
+                return True
+            if kind == "-false":
+                return False
+            if kind == "-name":
+                return fnmatch.fnmatchcase(name, v)
+            if kind == "-iname":
+                return fnmatch.fnmatchcase(name.lower(), v.lower())
+            if kind in ("-path", "-ipath", "-wholename"):
+                return fnmatch.fnmatchcase(shown if kind != "-ipath" else shown.lower(), v if kind != "-ipath" else v.lower())
+            if kind == "-type":
+                if v not in ("f", "d", "l"):
+                    raise ShellError(f"find: Unknown argument to -type: {v}", 1, tip="-type f = files, -type d = folders")
+                if v == "l":
+                    return p in self.fs.links
+                return (v == "d") == is_dir and p not in self.fs.links
+            if kind == "-empty":
+                return (not self.fs.children(p)) if is_dir else not self.fs.d.get(p)
+            if kind == "-size":
+                m = re.fullmatch(r"([+-]?)(\d+)([cwbkMG]?)", v)
+                if not m:
+                    raise ShellError(f"find: Invalid argument `{v}' to -size", 1, tip="example: -size +1k  (bigger than 1 KiB)")
+                unit = {"c": 1, "w": 2, "b": 512, "": 512, "k": 1024, "M": 1024 ** 2, "G": 1024 ** 3}[m.group(3)]
+                size = 4096 if is_dir else len(self.fs.d.get(p, ""))
+                units = -(-size // unit)
+                n = int(m.group(2))
+                return units > n if m.group(1) == "+" else (units < n if m.group(1) == "-" else units == n)
+            if kind in ("-mtime", "-atime", "-ctime", "-mmin"):
+                m = re.fullmatch(r"([+-]?)(\d+)", v)
+                if not m:
+                    raise ShellError(f"find: Invalid argument `{v}' to {kind}", 1)
+                n, age = int(m.group(2)), 0     # everything here was modified a moment ago
+                return age > n if m.group(1) == "+" else (age < n if m.group(1) == "-" else age == n)
+            if kind == "-perm":
+                m = re.fullmatch(r"([-/]?)([0-7]{3,4})", v)
+                if not m:
+                    raise ShellError(f"find: Invalid mode `{v}'", 1, tip="example: -perm 644")
+                want, bits = int(m.group(2), 8), self.fs.mode(p)
+                return (bits & want) == want if m.group(1) == "-" else (bool(bits & want) if m.group(1) == "/" else bits == want)
+            if kind in ("-user", "-group"):
+                return owner_of(p) == v
+            if kind in ("-readable", "-writable", "-executable"):
+                bit = {"-readable": 0o400, "-writable": 0o200, "-executable": 0o100}[kind]
+                return bool(self.fs.mode(p) & bit)
+            if kind in ("-print", "-print0"):
+                out.append(shown)
+                return True
+            if kind == "-delete":
+                if p == base_path:
+                    return True
+                if not self.writable(p):
+                    self.warn(f"find: cannot delete '{shown}': Permission denied")
+                    return False
+                if is_dir and self.fs.children(p):
+                    self.warn(f"find: cannot delete '{shown}': Directory not empty")
+                    return False
+                self.fs.remove(p)
+                return True
+            if kind == "-exec":
+                cmd, batch = v
+                if batch:
+                    batches.setdefault(id(node), (cmd, []))[1].append(shown)
+                    return True
+                argv = [shown if a == "{}" else a.replace("{}", shown) for a in cmd]
+                self._status = None
+                self._failed = False
+                res = self.dispatch(argv, None)
+                if res:
+                    out.append(res)
+                return (self._status if self._status is not None else (1 if self._failed else 0)) == 0
+            raise ShellError(f"find: unknown predicate `{kind}'", 1)
+        base_path = None
         for start in starts or ["."]:
-            base = self.path(start)
+            base_path = base = self.path(start)
             if not self.fs.exists(base):
                 self.warn(f"find: '{start}': No such file or directory", self.missing_tip(start, "find"))
                 continue
             paths = [base] + (self.fs.walk(base) if self.fs.isdir(base) else [])
             for p in paths:
-                name = self.fs.base(p) if p != base else self.fs.base(base) if start not in (".", "./") else "."
-                ok = True
-                for t, v in tests:
-                    if t == "-name":
-                        ok = ok and fnmatch.fnmatchcase(name, v)
-                    elif t == "-iname":
-                        ok = ok and fnmatch.fnmatchcase(name.lower(), v.lower())
-                    else:
-                        ok = ok and ((v == "d") == self.fs.isdir(p))
-                if ok:
-                    out.append(start if p == base else start.rstrip("/") + p[len(base.rstrip("/")):])
+                depth = 0 if p == base else p[len(base.rstrip("/")):].count("/")
+                if opts["maxdepth"] is not None and depth > opts["maxdepth"] or depth < opts["mindepth"]:
+                    continue
+                shown = start if p == base else start.rstrip("/") + p[len(base.rstrip("/")):]
+                name = self.fs.base(p) if p != base else (self.fs.base(base) if start not in (".", "./") else ".")
+                test(tree, {"p": p, "name": name, "shown": shown})
+        for cmd, shown_list in batches.values():
+            argv = [a for a in cmd if a != "{}"] + shown_list if "{}" in cmd else cmd + shown_list
+            res = self.dispatch(argv, None)
+            if res:
+                out.append(res)
         return "\n".join(out)
 
     def cmd_du(self, args, stdin):

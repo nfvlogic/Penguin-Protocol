@@ -121,30 +121,38 @@ class TicketCommands:
             cur += ("   " if cur else " ") + part
         rows.append(cur)
         lines = [rule, head] + [c("90", r) for r in rows] + [rule]
-        lw = w // 2 - 2 if two else w - 1
-        rw = w - lw - 3 if two else w - 1
-        left = [c("1;33", " DESCRIPTION")]
-        for para in lv["brief"]:
-            left += [" " + s for s in textwrap.wrap(para, lw - 1)] + [""]
-        if lv["parts"]:
-            left.append(c("1;33", " STEPS"))
-            for k, (question, _) in enumerate(lv["parts"]):
-                mark = c("32", "[x]") if k < self.part else (c("1;97", "[>]") if k == self.part else "[ ]")
-                wrapped = textwrap.wrap(f"{k + 1}. {question}", lw - 6)
-                left += [f" {mark} {wrapped[0]}"] + ["     " + s for s in wrapped[1:]]
-            left.append("")
-        left += [c("1;33", " RESOLVED WHEN")] + [" " + s for s in textwrap.wrap(lv["done"], lw - 1)]
-        right = [c("1;33", "COMMANDS YOU NEED"), c("90", "(examples use other files - adapt them)")]
-        for syntax, expl, example in lv["cmds"]:
-            right += [c("32", s) for s in textwrap.wrap(syntax, rw)]
-            right += ["  " + s for s in textwrap.wrap(expl, rw - 2)]
-            right += [c("90", "  " + s) for s in textwrap.wrap("e.g. " + example, rw - 2)]
-        if two:
+        def build(lw, rw):
+            left = [c("1;33", " DESCRIPTION")]
+            for para in lv["brief"]:
+                left += [" " + s for s in textwrap.wrap(para, lw - 1)] + [""]
+            if lv["parts"]:
+                left.append(c("1;33", " STEPS"))
+                for k, (question, _) in enumerate(lv["parts"]):
+                    mark = c("32", "[x]") if k < self.part else (c("1;97", "[>]") if k == self.part else "[ ]")
+                    wrapped = textwrap.wrap(f"{k + 1}. {question}", lw - 6)
+                    left += [f" {mark} {wrapped[0]}"] + ["     " + s for s in wrapped[1:]]
+                left.append("")
+            left += [c("1;33", " RESOLVED WHEN")] + [" " + s for s in textwrap.wrap(lv["done"], lw - 1)]
+            right = [c("1;33", "COMMANDS (examples: other files)")]
+            for syntax, expl, example in lv["cmds"]:
+                if syntax in ("submit ANSWER", "check"):  # always available: listed in the footer
+                    continue
+                right += [c("32", s) for s in textwrap.wrap(syntax, rw)]
+                right += [c("90", "  " + s) for s in textwrap.wrap(f"{expl} (e.g. {example})", rw - 2)]
+            return left, right
+        if two:  # pick the column split that makes the card shortest
+            best = None
+            for lw in range(w // 3, w - 37):
+                left, right = build(lw, w - lw - 3)
+                if best is None or max(len(left), len(right)) < best[0]:
+                    best = (max(len(left), len(right)), lw, left, right)
+            _, lw, left, right = best
             for i in range(max(len(left), len(right))):
                 l = left[i] if i < len(left) else ""
                 r = right[i] if i < len(right) else ""
                 lines.append(l + " " * (lw - vlen(l)) + c("90", " │ ") + r)
         else:
+            left, right = build(w - 1, w - 1)
             lines += left + [""] + [" " + r for r in right]
         return lines + [rule]
 
@@ -256,10 +264,10 @@ class TicketCommands:
 
     def cmd_unlock(self, args, stdin):
         if not args:
-            raise ShellError("unlock: missing clearance code", tip="example: unlock HZN-21-XXXX-XXXX")
+            raise ShellError("unlock: missing clearance code", tip="example: unlock PP-21-XXXX-XXXX")
         n = level_from_code(args[0], TOTAL)
         if n is None:
-            raise ShellError("unlock: invalid clearance code", tip="codes look like HZN-21-XXXX-XXXX")
+            raise ShellError("unlock: invalid clearance code", tip="codes look like PP-21-XXXX-XXXX")
         self.best = max(self.best, n)
         self.start_level(n)
         self.save()
@@ -278,6 +286,8 @@ class TicketCommands:
         return f"tips are {'on' if self.tips else 'off'} (tips are the grey lines under errors)"
 
     def cmd_exit(self, args, stdin):
+        if self.sessions:                  # leaving an ssh session, not the practice shell
+            return self.leave_session()
         self.save()
         self.running = False
 
