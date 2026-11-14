@@ -82,7 +82,7 @@ chmod +x deploy.sh
 file tickets_export.csv
 cat -A tickets_export.csv
 grep -c ',open$' tickets_export.csv
-tr -d '\r' < tickets_export.csv > clean.csv
+tr -d '\\r' < tickets_export.csv > clean.csv
 grep -c ',open$' clean.csv
 submit {EXPORT_OPEN}
 diff atlas/config/tst.py atlas/config/prd.py
