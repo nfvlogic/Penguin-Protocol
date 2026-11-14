@@ -186,22 +186,22 @@ NUDGES = {
     "ATL-114": "Take only the number column, sort it, and show what repeats.",
     "ATL-115": "Keep only the error lines first, then count by path.",
     "ATL-116": "Read the script, make it executable, run it and save its output.",
-    "ATL-122": "Find the replicas in /etc/hosts and test each one.",
-    "ATL-123": "Hide the resolved alerts, then look up the remaining IP.",
-    "ATL-125": "Call the token URL and read what the error asks for.",
-    "ATL-126": "Call the endpoint without a token first: the error says which header to add.",
-    "ATL-127": "Save the API output to a file, then count exact role matches.",
-    "ATL-128": "Find today's log of that server, then count the ERROR lines.",
-    "ATL-129": "Work inside the project folder, in this order: create the venv, activate it, install, run.",
-    "ATL-130": "flask run tells you which variable is missing. .env.example shows the values.",
-    "ATL-131": "Go into the project folder. One git command answers the first two steps.",
-    "ATL-132": "Create the branch BEFORE you write and commit the file.",
-    "ATL-133": "Compare what is staged with what is not staged.",
-    "ATL-143": "Search the templates for the form; list the migrations to see the last number.",
-    "ATL-144": "Filter the failed lines, take the user field and rank them. Then look at the successful one.",
-    "ATL-145": "Test every Atlas server, then search the load balancer configs for the one that is down.",
-    "ATL-146": "Include the commas in your search so workflow-ui does not match.",
-    "ATL-147": "Use the token on the incidents API and keep lines with both critical and open.",
+    "ATL-123": "Find the replicas in /etc/hosts and test each one.",
+    "ATL-124": "Hide the resolved alerts, then look up the remaining IP.",
+    "ATL-126": "Call the token URL and read what the error asks for.",
+    "ATL-127": "Call the endpoint without a token first: the error says which header to add.",
+    "ATL-128": "Save the API output to a file, then count exact role matches.",
+    "ATL-129": "Find today's log of that server, then count the ERROR lines.",
+    "ATL-130": "Work inside the project folder, in this order: create the venv, activate it, install, run.",
+    "ATL-131": "flask run tells you which variable is missing. .env.example shows the values.",
+    "ATL-132": "Go into the project folder. One git command answers the first two steps.",
+    "ATL-133": "Create the branch BEFORE you write and commit the file.",
+    "ATL-134": "Compare what is staged with what is not staged.",
+    "ATL-146": "Search the templates for the form; list the migrations to see the last number.",
+    "ATL-147": "Filter the failed lines, take the user field and rank them. Then look at the successful one.",
+    "ATL-148": "Test every Atlas server, then search the load balancer configs for the one that is down.",
+    "ATL-149": "Include the commas in your search so workflow-ui does not match.",
+    "ATL-150": "Use the token on the incidents API and keep lines with both critical and open.",
 }
 
 
@@ -318,10 +318,13 @@ def setup_805(g):
 
 
 NUDGES.update({
-    "ATL-139": "A for loop can walk through the names. ping succeeds or fails: use && and || to print up or down.",
-    "ATL-140": "List with find first. Archive with tar, pasting find's answer in with $( ). Delete only after the archive exists.",
-    "ATL-141": "readlink shows the target. To replace a link that points to a folder you need an extra ln option.",
-    "ATL-142": "Two streams: output and errors. One redirect each, or send the errors to the same place as the output.",
+    "ATL-122": "find lists the files. Pipe that list into xargs, first with echo to look, then with the command that deletes.",
+    "ATL-140": "du -s prints one total per folder. Sort the numbers, biggest first. Count of files is not the same as space used.",
+    "ATL-141": "The shell is the last field of each line, and the colon is the separator. Count lines by their ending.",
+    "ATL-142": "A for loop can walk through the names. ping succeeds or fails: use && and || to print up or down.",
+    "ATL-143": "List with find first. Archive with tar, pasting find's answer in with $( ). Delete only after the archive exists.",
+    "ATL-144": "readlink shows the target. To replace a link that points to a folder you need an extra ln option.",
+    "ATL-145": "Two streams: output and errors. One redirect each, or send the errors to the same place as the output.",
     "ATL-105": "Two jobs: copy the three files into the backup folder, then move the migration to its new name.",
     "ATL-113": "One grep option lists only file names. Another limits the search to files with a certain name pattern.",
     "ATL-117": "Look at the file with a command that shows hidden characters. One command can delete a given character.",
@@ -329,12 +332,12 @@ NUDGES.update({
     "ATL-119": "Backup first. Then sed can replace text inside a file: look at its option for changing the file itself.",
     "ATL-120": "awk can test one column and print another. For the total, add the column up and print it at the END.",
     "ATL-121": "Tell awk the columns are separated by commas. A total per name needs an array.",
-    "ATL-124": "You can run one command on another server through ssh. Ask it about its disks first.",
-    "ATL-134": "List all processes with their CPU use, then sort by that column. Stopping a process needs its number.",
-    "ATL-135": "The long listing shows permissions. Three digits set them for owner, group and everybody else.",
-    "ATL-136": "Ask the service how it is doing, then read its log. The cause is written there.",
-    "ATL-137": "One tar command creates the archive, another lists it, a third extracts into a folder.",
-    "ATL-138": "Activate the venv inside the project folder, start it and read the error. Then find which process listens on that port.",
+    "ATL-125": "You can run one command on another server through ssh. Ask it about its disks first.",
+    "ATL-135": "List all processes with their CPU use, then sort by that column. Stopping a process needs its number.",
+    "ATL-136": "The long listing shows permissions. Three digits set them for owner, group and everybody else.",
+    "ATL-137": "Ask the service how it is doing, then read its log. The cause is written there.",
+    "ATL-138": "One tar command creates the archive, another lists it, a third extracts into a folder.",
+    "ATL-139": "Activate the venv inside the project folder, start it and read the error. Then find which process listens on that port.",
 })
 
 
@@ -352,3 +355,10 @@ def setup_release(g):
 
 def setup_nightly(g):
     g.fs.set_mode(HOME + "/nightly.sh", 0o755)
+
+
+DU_BIG = "x" * 50000
+DU_FILES = {**{f"data/cache/c{i}.bin": "x" * 9000 for i in range(1, 6)},
+            **{f"data/uploads/u{i}.bin": DU_BIG for i in (1, 2)},
+            **{f"data/exports/e{i}.csv": "x" * 5000 for i in (1, 2, 3)}, "data/tmp/": ""}
+DU_UPLOADS = str((4096 + 2 * -(-50000 // 4096) * 4096) // 1024)

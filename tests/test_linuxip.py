@@ -20,7 +20,7 @@ from linuxip.manual import HELP, MAN  # noqa: E402
 from linuxip.tickets import LEVELS, TOTAL  # noqa: E402
 from linuxip.tickets_data import NUDGES  # noqa: E402
 
-from linuxip.tickets_data import COSTS_PRD, COSTS_TOP, EXPORT_OPEN, TRAFFIC_404, TRAFFIC_SUM  # noqa: E402
+from linuxip.tickets_data import COSTS_PRD, COSTS_TOP, DU_UPLOADS, EXPORT_OPEN, TRAFFIC_404, TRAFFIC_SUM  # noqa: E402
 
 WALKTHROUGH = f"""
 cat welcome.txt
@@ -100,6 +100,9 @@ awk -F, '$2 == "prd" {{s += $3}} END {{print s}}' costs.csv
 submit {COSTS_PRD}
 awk -F, '{{t[$1] += $3}} END {{for (k in t) print k, t[k]}}' costs.csv | sort -k2 -n -r
 submit {COSTS_TOP}
+find build -name "*.tmp"
+find build -name "*.tmp" | xargs echo
+find build -name "*.tmp" | xargs rm
 grep atlas /etc/hosts
 ping -c 3 atlas-db-02
 ping -c 3 atlas-db-03
@@ -149,7 +152,7 @@ cd atlas
 git checkout -b feature/launch-date
 echo "add_column('request', 'launch_date')" > migrations/0042_add_launch_date.py
 git add migrations/0042_add_launch_date.py
-git commit -m "ATL-143 Add launch date column"
+git commit -m "ATL-146 Add launch date column"
 cd atlas
 git diff
 submit compass-db-01
@@ -183,6 +186,14 @@ ss -tlnp
 submit 4388
 kill 4388
 flask run --port 5050
+du -s data/* | sort -n -r | head -n 3
+submit uploads
+submit {DU_UPLOADS}
+cat /etc/passwd | tail -n 2
+grep -c 'bash$' /etc/passwd
+submit 2
+grep mysql /etc/passwd | cut -d: -f3
+submit 114
 echo 'for h in $(cat hosts.txt); do ping -c 1 $h > /dev/null 2>&1 && echo "$h up" || echo "$h down"; done' > check_hosts.sh
 chmod +x check_hosts.sh
 ./check_hosts.sh > report.txt
@@ -601,11 +612,11 @@ class SshTicket(Short):
 
 class SaveAndResume(Short):
     def test_resume_mid_step(self):
-        out, data = run("check\n", state={"ticket": "ATL-143", "best_ticket": "ATL-143", "part": 1})
+        out, data = run("check\n", state={"ticket": "ATL-146", "best_ticket": "ATL-146", "part": 1})
         self.assertIn("Welcome back! Progress loaded", out)
         self.assertIn("Continuing at step 2", out)
         self.assertIn("[x] Step 1", out)
-        self.assertEqual(data["ticket"], "ATL-143")
+        self.assertEqual(data["ticket"], "ATL-146")
 
     def test_old_numbered_save(self):
         out, _ = run("tasks\n", state={"level": 3, "best": 5})

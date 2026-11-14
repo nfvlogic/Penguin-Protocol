@@ -9,7 +9,7 @@ ticket, and must never contain an answer. tests/test_linuxip.py checks this auto
 from .cmd_dev import ghash
 from .cmd_sys import tar_members
 from .core import API, HOME, TOKEN
-from .tickets_data import (BIG_LOGS, HOST_REPORT, LOG_BIG, LOG_SMALL, NIGHTLY, NIGHTLY_ERROR, setup_nightly, setup_release,  # noqa: F401
+from .tickets_data import (DU_FILES, DU_UPLOADS, BIG_LOGS, HOST_REPORT, LOG_BIG, LOG_SMALL, NIGHTLY, NIGHTLY_ERROR, setup_nightly, setup_release,  # noqa: F401
                            COSTS, COSTS_PRD, COSTS_TOP, DEPLOY_SH, EXPORT_ROWS, EXPORT_OPEN, EXPORT_TEXT,  # noqa: F401
                            NUDGES, REQUIREMENTS, TRAFFIC, TRAFFIC_404, TRAFFIC_SUM, TST_CONFIG, TST_CONFIG_NEW,
                            WORKFLOW_LINES, gen_access, gen_app_log, gen_auth_log, gen_deploy_log, gen_incident,
@@ -375,8 +375,25 @@ LEVELS = [
                 ("Which service is the most expensive over all environments? (its name)", COSTS_TOP)],
          hint="awk -F, '$2 == \"prd\" {s += $3} END {print s}' costs.csv ; "
               "awk -F, '{t[$1] += $3} END {for (k in t) print k, t[k]}' costs.csv | sort -k2 -n -r"),
+    task("Text tools", "ATL-122", "Clean the build leftovers", "Normal", "Tech lead",
+         ["The build folder is full of temporary files. Delete every file ending in .tmp anywhere below ~/build, "
+          "and nothing else: other files, even ones with tmp in their name, must stay.",
+          "find lists the files; xargs turns that list into the arguments of another command. Preview with "
+          "echo before you delete anything."],
+         "No .tmp file is left below ~/build and all other files are untouched. Closes by itself (type check).",
+         [('find FOLDER -name "PATTERN"', "list files by name in all subfolders", 'find src -name "*.bak"'),
+          ("... | xargs echo", "PREVIEW: show what xargs would run (-n 1 = one file per line)", 'find src -name "*.bak" | xargs -n 1 echo'),
+          ("... | xargs CMD", "run CMD with the listed files as arguments", 'find src -name "*.bak" | xargs ls -l'),
+          ("rm FILE...", "delete files", "rm old1.log old2.log"), CHECK],
+         {"build/a.tmp": "x", "build/obj/b.tmp": "x", "build/obj/deep/c.tmp": "x", "build/keep.txt": "keep",
+          "build/obj/main.o": "obj", "build/notes.tmp.keep": "keep", "build/Makefile": "all:"},
+         checks=[("no .tmp file is left below ~/build",
+                  lambda g: not any(k.endswith(".tmp") for k in g.fs.d if k.startswith(HOME + "/build/"))),
+                 ("the other files are untouched",
+                  lambda g: all(g.fs.isfile(f"{HOME}/build/{f}") for f in ("keep.txt", "obj/main.o", "notes.tmp.keep", "Makefile")))],
+         hint='find build -name "*.tmp" | xargs echo ; find build -name "*.tmp" | xargs rm'),
     # ------------------------------------------------------------ ENVIRONMENTS
-    task("Environments", "ATL-122", "PRD database failover", "Critical", "Platform team",
+    task("Environments", "ATL-123", "PRD database failover", "Critical", "Platform team",
          ["PRD points to atlas-db-01, which stopped answering. There are two replicas: "
           "atlas-db-02 and atlas-db-03. We must switch Atlas to the one that is alive.",
           "Server names and their IPs are in /etc/hosts. Real ping never stops by itself: "
@@ -386,7 +403,7 @@ LEVELS = [
           ("cat /etc/hosts", "all server names and their IPs", "cat /etc/hosts"),
           ("grep TEXT FILE", "show matching lines", "grep gateway /etc/hosts"), PING, SUBMIT],
          answer="10.20.30.12", hint="ping -c 3 atlas-db-02 ; ping -c 3 atlas-db-03 ; grep atlas-db /etc/hosts"),
-    task("Environments", "ATL-123", "Monitoring alerts", "High", "Monitoring",
+    task("Environments", "ATL-124", "Monitoring alerts", "High", "Monitoring",
          ["alerts.log has today's Atlas alerts. Most were resolved automatically. One host is "
           "still down and the alert only shows its IP.",
           "Find the unresolved alert, turn the IP into a server name, and confirm it is down."],
@@ -398,7 +415,7 @@ LEVELS = [
                         "09:42 host 10.20.30.13 not responding (3 checks failed)\n"
                         "09:50 host 10.20.30.33 slow disk RESOLVED 09:58"},
          answer="atlas-db-03", hint="grep -v RESOLVED alerts.log ; grep 10.20.30.13 /etc/hosts"),
-    task("Environments", "ATL-124", "PRD disk is full", "Critical", "Monitoring",
+    task("Environments", "ATL-125", "PRD disk is full", "Critical", "Monitoring",
          ["Monitoring says Atlas on atlas-prd stopped writing logs. You do not log in to servers to look "
           "around: you ask them one question at a time with ssh.",
           "Run  ssh analyst@atlas-prd COMMAND  to run COMMAND on that server (put the command in quotes if "
@@ -418,7 +435,7 @@ LEVELS = [
               'ssh analyst@atlas-prd "ls -l /var/log/atlas | sort -k5 -n -r | head -n 1"',
          setup=setup_417),
     # ------------------------------------------------------------ API
-    task("API", "ATL-125", "API access token", "Normal", "Integration team",
+    task("API", "ATL-126", "API access token", "Normal", "Integration team",
          ["The Power BI team wants to read Atlas data through its REST API. First you need a "
           f"token from the token endpoint: {API}/token",
           "Like real curl, the output is only the response body. Read the error messages and "
@@ -429,7 +446,7 @@ LEVELS = [
           ("URL?key=value", "send data in the URL (a query); quote the URL", f'curl "{API}/search?q=gate"'),
           ("whoami", "print your user name", "whoami"), SUBMIT],
          answer=TOKEN, hint=f'curl {API}/token ; whoami ; curl "{API}/token?user=analyst"'),
-    task("API", "ATL-126", "Project stage from the API", "Normal", "Product owner",
+    task("API", "ATL-127", "Project stage from the API", "Normal", "Product owner",
          [f"Check through the API in which stage project NPI-042 is: {API}/api/projects/NPI-042",
           "The projects endpoint is protected: it needs your token in a header. The error "
           "message tells you the exact header format. Tip: keep the token in a shell variable."],
@@ -440,7 +457,7 @@ LEVELS = [
           ('curl -H "HEADER" URL', "send a header with the request", f'curl -H "Accept: text/plain" {API}/status'),
           SUBMIT],
          answer="Gate 2", hint=f'curl -H "Authorization: Bearer {TOKEN}" {API}/api/projects/NPI-042'),
-    task("API", "ATL-127", "Role audit before go-live", "High", "Security team",
+    task("API", "ATL-128", "Role audit before go-live", "High", "Security team",
          [f"Before go-live, security wants to know how many Atlas users are admins. {API}/api/users "
           "returns one JSON user per line. Save it to users.json first (auditors want the file).",
           "Careful: a pending 'admin-request' is not an admin yet."],
@@ -450,7 +467,7 @@ LEVELS = [
           ("grep -c '\"TEXT\"' FILE", "include the quotes to match one exact JSON value",
            "grep -c '\"up\"' status.json"), SUBMIT],
          answer="3", hint=f"curl {API}/api/users > users.json ; grep -c '\"admin\"' users.json"),
-    task("API", "ATL-128", "Slow database incident", "Critical", "Tech lead",
+    task("API", "ATL-129", "Slow database incident", "Critical", "Tech lead",
          ["Users say Atlas was very slow TODAY (2026-11-12). The DBA suspects atlas-db-02. "
           "We need the number of ERROR lines in today's log of that server.",
           "Logs are in ~/incident, one folder per day. The same server has logs on other days "
@@ -462,7 +479,7 @@ LEVELS = [
          gen_incident("atlas-db-02", 7), answer="7",
          hint='find incident -name "atlas-db-02*" ; grep -c ERROR incident/2026/11/12/atlas-db-02.log'),
     # ------------------------------------------------------------ GIT & PYTHON
-    task("Git & Python", "ATL-129", "Set up the dev environment", "High", "Tech lead",
+    task("Git & Python", "ATL-130", "Set up the dev environment", "High", "Tech lead",
          ["Your laptop was reinstalled. Get Atlas running again the standard way: a virtual "
           "environment in a folder called .venv inside ~/atlas, the requirements installed "
           "into it, and the app started on the port from the README.",
@@ -485,7 +502,7 @@ LEVELS = [
                  ("Atlas started with flask run", lambda g: g.flask_ran)],
          hint="cd atlas ; python3 -m venv .venv ; source .venv/bin/activate ; "
               "pip install -r requirements.txt ; flask run --port 5050"),
-    task("Git & Python", "ATL-130", "Missing environment variables", "High", "Platform team",
+    task("Git & Python", "ATL-131", "Missing environment variables", "High", "Platform team",
          ["On the servers there is no .env file: settings come from environment variables "
           "(Azure App Service works the same way). We copied that setup to your machine: the "
           "venv in ~/atlas/.venv is ready, but Atlas refuses to start.",
@@ -507,7 +524,7 @@ LEVELS = [
          hint="cd atlas ; source .venv/bin/activate ; flask run ; cat .env.example ; export DB_HOST=localhost ; "
               "export DB_NAME=atlas_dev ; flask run",
          setup=setup_702),
-    task("Git & Python", "ATL-131", "What is in my working copy?", "Normal", "Tech lead",
+    task("Git & Python", "ATL-132", "What is in my working copy?", "Normal", "Tech lead",
          ["You are taking over a colleague's work on Atlas. Before touching anything, find "
           "out where the repository stands.",
           "Every answer comes from git, run inside ~/atlas. git only works inside the project folder."],
@@ -520,11 +537,11 @@ LEVELS = [
                 ("Which tracked file has changes that are not committed? (its path)", ("app/routes.py", "routes.py")),
                 ("What is the short hash of the commit 'Add trademark BU dropdown'?", ghash("Add trademark BU dropdown"))],
          hint="cd atlas ; git status ; git log --oneline", setup=setup_703),
-    task("Git & Python", "ATL-132", "Branch, fix and commit", "High", "Tech lead",
+    task("Git & Python", "ATL-133", "Branch, fix and commit", "High", "Tech lead",
          ["Team rule: never commit straight to main. Create the branch feature/launch-date, add "
           "the migration migrations/0042_add_launch_date.py with one line: "
           "add_column('request', 'launch_date')",
-          "Commit it with a message that starts with the ticket number ATL-143. "
+          "Commit it with a message that starts with the ticket number ATL-146. "
           "Made a mistake on main? Type reset to start this ticket again."],
          "All requirements are met. Closes by itself (type check).",
          [CD, ("git checkout -b NAME", "create a new branch and switch to it", "git checkout -b fix/typo"),
@@ -537,14 +554,14 @@ LEVELS = [
                  ("last commit adds the migration with the right line",
                   lambda g: g.repo and g.git_head().get("tree", {}).get("migrations/0042_add_launch_date.py", "").strip()
                   == "add_column('request', 'launch_date')"),
-                 ("commit message starts with ATL-143", lambda g: g.repo and g.git_head().get("msg", "").startswith("ATL-143")),
+                 ("commit message starts with ATL-146", lambda g: g.repo and g.git_head().get("msg", "").startswith("ATL-146")),
                  ("main was not touched", lambda g: g.repo and len(g.repo["branches"]["main"]) == g.mark.get("main_len")),
                  ("nothing left uncommitted", lambda g: g.repo and g.git_clean())],
          hint="cd atlas ; git checkout -b feature/launch-date ; echo \"add_column('request', 'launch_date')\" > "
               "migrations/0042_add_launch_date.py ; git add migrations/0042_add_launch_date.py ; "
-              "git commit -m \"ATL-143 Add launch date column\"",
+              "git commit -m \"ATL-146 Add launch date column\"",
          setup=setup_704),
-    task("Git & Python", "ATL-133", "Review before the pull request", "High", "Code review",
+    task("Git & Python", "ATL-134", "Review before the pull request", "High", "Code review",
          ["Your SSO branch is almost ready for a pull request. Always review your changes "
           "before you push: something slipped in that should not be there.",
           "git has two kinds of changes: not staged yet, and staged (what WILL go into the next commit)."],
@@ -559,7 +576,7 @@ LEVELS = [
                 ("Which package is staged to be added to requirements.txt? (name only)", ("requests", "requests==2.32.3"))],
          hint="cd atlas ; git diff ; git restore config/tst.py ; git diff --staged", setup=setup_705),
     # ------------------------------------------------------------ SERVERS
-    task("Servers", "ATL-134", "Runaway process", "Critical", "Platform team",
+    task("Servers", "ATL-135", "Runaway process", "Critical", "Platform team",
          ["Your dev box is crawling. Something is eating the CPU. Find the process that uses the most CPU "
           "and stop it.",
           "Every process has a number (PID). kill sends it a polite request to stop; some processes ignore "
@@ -572,7 +589,7 @@ LEVELS = [
          parts=[("Which process uses the most CPU? Submit its PID", "4127"),
                 ("Stop it (completes by itself when it no longer shows in ps)", lambda g: 4127 not in g.procs)],
          hint="ps aux | sort -k3 -n -r | head -n 3 ; kill 4127 ; kill -9 4127", setup=setup_801),
-    task("Servers", "ATL-135", "Secrets everyone can read", "High", "Security team",
+    task("Servers", "ATL-136", "Secrets everyone can read", "High", "Security team",
          ["The audit found files with the wrong permissions. In ls -l the first column shows them: three "
           "letters for the owner (u), three for the group (g), three for everybody else (o).",
           "Numbers: r=4, w=2, x=1, added per group. 640 = rw- r-- --- . Fix three things: atlas/.env only "
@@ -594,7 +611,7 @@ LEVELS = [
                   lambda g: g.fs.mode(HOME + "/atlas/config/prd.py") == 0o644)],
          hint="ls -la atlas ; chmod 600 atlas/.env ; chmod 750 atlas/scripts/deploy.sh ; chmod 644 atlas/config/prd.py",
          setup=setup_802),
-    task("Servers", "ATL-136", "The API service will not start", "Critical", "Tech lead",
+    task("Servers", "ATL-137", "The API service will not start", "Critical", "Tech lead",
          ["atlas-api is a service of your own user (a systemd user service) and it is in a failed state. "
           "Never guess: read what the service says about itself, then fix the cause.",
           "Services of your own user need --user in front of the action. After fixing the cause, start it "
@@ -613,7 +630,7 @@ LEVELS = [
          hint="systemctl --user status atlas-api ; journalctl --user -u atlas-api -n 5 ; "
               "chmod 640 atlas/api.conf ; systemctl --user restart atlas-api",
          setup=setup_803),
-    task("Servers", "ATL-137", "Backup before the release", "High", "Release manager",
+    task("Servers", "ATL-138", "Backup before the release", "High", "Release manager",
          ["Before the release, back up the configuration. Put the folder atlas/config into a compressed "
           "archive called config-backup.tar.gz inside ~/backups. Then check what is in it, and finally "
           "practice a restore.",
@@ -636,7 +653,7 @@ LEVELS = [
                  and not g.fs.exists(HOME + "/restore/atlas/config/prd.py"))],
          hint="tar -czf backups/config-backup.tar.gz atlas/config ; tar -tzf backups/config-backup.tar.gz | grep -c 'py$' ; "
               "tar -xzf backups/config-backup.tar.gz -C restore atlas/config/tst.py"),
-    task("Servers", "ATL-138", "Port 5050 is already in use", "High", "Tech lead",
+    task("Servers", "ATL-139", "Port 5050 is already in use", "High", "Tech lead",
          ["You start Atlas on port 5050 and it refuses: the port is already taken. Your venv in "
           "~/atlas/.venv is ready and the environment is configured.",
           "Find out which process listens on that port, stop it, and start Atlas on 5050 again. Do not "
@@ -653,8 +670,34 @@ LEVELS = [
                  lambda g: g.flask_port == "5050" and 4388 not in g.procs)],
          hint="cd atlas ; source .venv/bin/activate ; flask run --port 5050 ; ss -tlnp ; kill 4388 ; flask run --port 5050",
          setup=setup_805),
+    task("Servers", "ATL-140", "Who ate the disk?", "High", "Platform team",
+         ["The data disk is almost full. Under ~/data there are four folders. Find out which one really uses "
+          "the most space. The folder with the most files is not necessarily the biggest one.",
+          "du shows disk usage: -s gives one total per argument. Without -h the numbers are in KB."],
+         "Both steps answered.",
+         [("du -sh FOLDER...", "one human-readable total for each folder", "du -sh logs/*"),
+          ("du -s FOLDER...", "totals in KB, good for sorting", "du -s logs/*"),
+          ("sort -n -r | head -n 1", "biggest number first, keep one", "... | sort -n -r | head -n 1"),
+          ("ls FOLDER | wc -l", "how many files a folder has", "ls logs/old | wc -l"), SUBMIT],
+         DU_FILES,
+         parts=[("Which folder under ~/data uses the most disk space? (its name)", "uploads"),
+                ("How many KB does that folder use? (the number du -s prints)", DU_UPLOADS)],
+         hint="du -s data/* | sort -n -r | head -n 1"),
+    task("Servers", "ATL-141", "Who can log in here?", "Normal", "Security team",
+         ["For the access review, security asks which accounts on this server can actually log in. Every account "
+          "is one line of /etc/passwd with 7 fields separated by colons: name:x:uid:gid:comment:home:shell.",
+          "An account can log in when its shell is a real shell like bash. Service accounts have nologin or "
+          "false there."],
+         "Both questions answered.",
+         [("cat /etc/passwd", "one account per line", "cat /etc/group"),
+          ("grep -c 'TEXT$' FILE", "count lines that END with a text", "grep -c 'sh$' /etc/shells"),
+          ("cut -d: -f N FILE", "the colon separates the fields: take field N", "cut -d: -f1 /etc/group"),
+          ("a | b", "pipe: the output of a goes into b", "grep root /etc/group | cut -d: -f3"), SUBMIT],
+         parts=[("How many accounts have bash as their login shell?", "2"),
+                ("Which user id (uid, field 3) does the account mysql have?", "114")],
+         hint="grep -c 'bash$' /etc/passwd ; grep mysql /etc/passwd | cut -d: -f3"),
     # ------------------------------------------------------------ SCRIPTING
-    task("Scripting", "ATL-139", "Which servers answer?", "High", "Monitoring",
+    task("Scripting", "ATL-142", "Which servers answer?", "High", "Monitoring",
          ["The on-call engineer wants a small script that checks a list of servers. hosts.txt has one server "
           "name per line.",
           "Write check_hosts.sh: for every name in hosts.txt it prints  NAME up  or  NAME down  (one line per "
@@ -674,7 +717,7 @@ LEVELS = [
                   lambda g: g.fs.d.get(HOME + "/report.txt", "").split("\n") == HOST_REPORT)],
          hint="echo 'for h in $(cat hosts.txt); do ping -c 1 $h > /dev/null 2>&1 && echo \"$h up\" || echo \"$h down\"; done' "
               "> check_hosts.sh ; chmod +x check_hosts.sh ; ./check_hosts.sh > report.txt"),
-    task("Scripting", "ATL-140", "Archive the big logs", "Normal", "Platform team",
+    task("Scripting", "ATL-143", "Archive the big logs", "Normal", "Platform team",
          ["The log folder keeps growing. Every .log file in ~/logs that is bigger than 1 KiB must go into one "
           "compressed archive, ~/logs-archive.tar.gz, and then be deleted. Smaller logs stay where they are.",
           "Never delete what you have not listed: see which files find selects first. $(command) pastes the "
@@ -692,7 +735,7 @@ LEVELS = [
                  ("the small logs are still there",
                   lambda g: all(g.fs.isfile(f"{HOME}/logs/app-{i}.log") for i in (2, 4, 6)))],
          hint='tar -czf logs-archive.tar.gz $(find logs -name "*.log" -size +1k) ; find logs -name "*.log" -size +1k -delete'),
-    task("Scripting", "ATL-141", "Switch the current release", "High", "Release manager",
+    task("Scripting", "ATL-144", "Switch the current release", "High", "Release manager",
          ["The web server always serves the folder  current , which is a symbolic link to one release in "
           "~/releases. Find out which release it serves now, then switch it to v1.9.0.",
           "Careful: if the link points to a folder, a plain  ln -sf  creates the new link INSIDE that folder. "
@@ -709,7 +752,7 @@ LEVELS = [
                 ("Switch current to the release v1.9.0 (completes by itself)",
                  lambda g: g.fs.follow(HOME + "/current") == HOME + "/releases/v1.9.0")],
          hint="readlink current ; ln -sfn releases/v1.9.0 current", setup=setup_release),
-    task("Scripting", "ATL-142", "Silence the nightly job", "Normal", "Platform team",
+    task("Scripting", "ATL-145", "Silence the nightly job", "Normal", "Platform team",
          ["nightly.sh runs every night and mails the team its whole output, errors included. Read the script, "
           "then run it twice: once with ALL its output (normal messages and errors, in order) in nightly.log, "
           "once with only the error messages in nightly.err.",
@@ -727,7 +770,7 @@ LEVELS = [
                   lambda g: g.fs.d.get(HOME + "/nightly.err", "").split("\n") == [NIGHTLY_ERROR])],
          hint="cat nightly.sh ; ./nightly.sh > nightly.log 2>&1 ; ./nightly.sh 2> nightly.err > /dev/null", setup=setup_nightly),
     # ------------------------------------------------------------ FEATURE WORK (multi-step)
-    task("Feature work", "ATL-143", "Add the launch date column", "High", "Product owner",
+    task("Feature work", "ATL-146", "Add the launch date column", "High", "Product owner",
          ["The request form must save a desired launch date. The column does not exist yet: "
           "that is why /requests/new crashes with KeyError: 'launch_date'.",
           "Find the template of the form, find the next free migration number, and write the "
@@ -753,7 +796,7 @@ LEVELS = [
                                    ["add_column('request', 'launch_date')"])(g))],
          hint="grep -r request_form atlas/app/templates ; ls atlas/migrations ; "
               "echo \"add_column('request', 'launch_date')\" > atlas/migrations/0042_add_launch_date.py"),
-    task("Feature work", "ATL-144", "Brute force on the service account", "Critical", "Security team",
+    task("Feature work", "ATL-147", "Brute force on the service account", "Critical", "Security team",
          ["Before SSO goes live, Atlas still allows password login on its server. Overnight, "
           "auth.log recorded many failed logins. Who was targeted, did the attacker get in, "
           "and from which machine?",
@@ -770,7 +813,7 @@ LEVELS = [
                 ("Which machine is that IP? (its name in /etc/hosts)", "guest-laptop-07")],
          hint='grep Failed auth.log | cut -d " " -f 9 | sort | uniq -c | sort -n -r ; '
               'grep Accepted auth.log ; grep 10.20.30.66 /etc/hosts'),
-    task("Feature work", "ATL-145", "Atlas PRE is down", "Critical", "QA team",
+    task("Feature work", "ATL-148", "Atlas PRE is down", "Critical", "QA team",
          ["Nobody can test the v1.9 release: the PRE environment does not respond. The load "
           "balancer configs in ~/lb/sites say for each part of Atlas which server is "
           "'primary' and which is 'fallback'.",
@@ -789,7 +832,7 @@ LEVELS = [
                 ("Is that site's fallback online? Submit the fallback's IP address", "10.20.30.31")],
          hint='grep atlas /etc/hosts ; ping -c 3 atlas-pre ; grep -r "primary = atlas-pre" lb ; '
               'cat lb/sites/requests.conf ; ping -c 3 atlas-tst'),
-    task("Feature work", "ATL-146", "Sprint review numbers", "High", "Scrum master",
+    task("Feature work", "ATL-149", "Sprint review numbers", "High", "Scrum master",
          ["Sprint review in one hour. sprint.csv has every ticket of the sprint: ticket,component,points.",
           "Answer the questions, then give the scrum master a file workflow.csv with only the "
           "workflow tickets. Careful: 'workflow-ui' is a different component."],
@@ -807,7 +850,7 @@ LEVELS = [
                  lambda g: content("workflow.csv", WORKFLOW_LINES)(g))],
          hint='grep -c ",workflow," sprint.csv ; cut -d "," -f 3 sprint.csv | sort -n -r | head -n 1 ; '
               'grep ",workflow," sprint.csv > workflow.csv'),
-    task("Feature work", "ATL-147", "Release post-mortem", "Critical", "Tech lead",
+    task("Feature work", "ATL-150", "Release post-mortem", "Critical", "Tech lead",
          [f"Final case. The incidents endpoint {API}/api/incidents lists all Atlas incidents (it "
           "needs your token). Find the critical incident that is still open, find in its "
           "server's log when the first ERROR happened today, and write the post-mortem file.",

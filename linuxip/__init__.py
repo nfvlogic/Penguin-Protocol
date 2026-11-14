@@ -11,6 +11,6 @@ Modules:
   cmd_dev.py       export env python3 source pip flask git
   cmd_tickets.py   ticket cards, submit check hint tasks, save/load, help, man
   manual.py        man pages and help text
-  tickets.py       the 47 tickets (edit here to add tickets)
+  tickets.py       the 50 tickets (edit here to add tickets)
   tickets_data.py  generated log files, CSVs and git/venv setups for the tickets
 """
