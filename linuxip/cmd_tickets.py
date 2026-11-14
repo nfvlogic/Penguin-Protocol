@@ -109,8 +109,12 @@ class TicketCommands:
         lv, n = self.ticket(), self.level
         rule = c("90", "─" * w)
         left_title, right_title = f" {lv['ticket']}  {lv['name']}", f"Priority: {lv['prio']} "
-        gap = max(1, w - len(left_title) - len(right_title))
-        head = c("1;97", left_title) + " " * gap + c(PRIO_COLOR.get(lv["prio"], "37"), right_title)
+        gap = w - len(left_title) - len(right_title)
+        if gap >= 1:
+            head = [c("1;97", left_title) + " " * gap + c(PRIO_COLOR.get(lv["prio"], "37"), right_title)]
+        else:    # narrow screen (a phone): the title wraps and the priority gets its own line
+            head = [c("1;97", " " + t) for t in textwrap.wrap(left_title.strip(), w - 1)] + \
+                   [c(PRIO_COLOR.get(lv["prio"], "37"), " " + right_title.strip())]
         parts = [f"From: {lv['from']}", f"Module: {lv['module']}", f"Ticket {n} of {TOTAL}",
                  f"Clearance: {code_for(n)}"]
         rows, cur = [], ""
@@ -120,7 +124,7 @@ class TicketCommands:
                 cur = ""
             cur += ("   " if cur else " ") + part
         rows.append(cur)
-        lines = [rule, head] + [c("90", r) for r in rows] + [rule]
+        lines = [rule] + head + [c("90", r) for r in rows] + [rule]
         def build(lw, rw):
             left = [c("1;33", " DESCRIPTION")]
             for para in lv["brief"]:
