@@ -7,11 +7,14 @@
 <p align="center"><b>Learn Linux by going undercover.</b><br>
 A realistic terminal simulator with 50 covert missions, from your first <code>ls</code> to a live incident.</p>
 
+<p align="center"><a href="https://nfvlogic.github.io/Penguin-Protocol/"><b>Play in your browser</b></a></p>
+
 <p align="center">
   <img alt="Python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-f5a031?labelColor=1a1a1a">
   <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-f5a031?labelColor=1a1a1a">
   <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-f5a031?labelColor=1a1a1a">
   <img alt="Missions: 50" src="https://img.shields.io/badge/missions-50-f5a031?labelColor=1a1a1a">
+  <a href="https://github.com/nfvlogic/Penguin-Protocol/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/nfvlogic/Penguin-Protocol/actions/workflows/tests.yml/badge.svg"></a>
 </p>
 
 ---
@@ -111,6 +114,8 @@ Password for level 2: PP-02-HZT3-6T2X  (keep it: type  level 2  on any computer 
 Requires Python 3.9 or newer. No packages to install.
 
 ## Play in the browser
+
+**Play now: https://nfvlogic.github.io/Penguin-Protocol/**
 
 The same game runs in a web page (the real Python code, through Pyodide) and installs like an app. On an iPhone
 open the page in Safari, then Share, Add to Home Screen. It works offline after the first load and keeps your
