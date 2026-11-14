@@ -15,7 +15,7 @@ function fit() { input.style.height = "auto"; input.style.height = input.scrollH
 const cur = $("cur"), lineEl = $("line");
 const mirror = document.createElement("div"); mirror.id = "mirror"; lineEl.appendChild(mirror);
 let curQueued = false;
-function schedCur() { if (!curQueued) { curQueued = true; requestAnimationFrame(() => { curQueued = false; updateCursor(); }); } }
+function schedCur() { if (!curQueued) { curQueued = true; setTimeout(() => { curQueued = false; updateCursor(); }, 16); } }   // a timer: also runs while an app view throttles animation frames
 function updateCursor() {
   if (input.disabled || input.selectionStart !== input.selectionEnd) { cur.className = ""; return; }
   const cs = getComputedStyle(input), pos = input.selectionEnd ?? input.value.length;
