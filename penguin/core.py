@@ -28,8 +28,8 @@ HOSTS = """127.0.0.1     localhost
 ONLINE = {"127.0.0.1", "10.20.30.47", "10.20.30.1", "10.20.30.12", "10.20.30.20",
           "10.20.30.31", "10.20.30.33"}
 
-# Real colours only in a real terminal; piped output (tests) stays plain.
-TTY = sys.stdin.isatty() and sys.stdout.isatty()
+# Real colours only in a real terminal (or the web terminal); piped output (tests) stays plain.
+TTY = os.environ.get("PENGUIN_TTY") == "1" or (sys.stdin.isatty() and sys.stdout.isatty())   # PENGUIN_TTY=1: the web page
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 RESET = "\x1b[0m"
 

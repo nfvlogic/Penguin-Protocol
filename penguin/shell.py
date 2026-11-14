@@ -529,9 +529,9 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         self.out("")
         self.out("Last login: Wed Nov 11 17:42:13 2026 from 10.20.30.5")
 
-    def run(self):
-        if TTY:
-            self.setup_completion()
+    def start(self):
+        """Everything before the first prompt: banner, load the save, show the first ticket."""
+        self._buf, self._here = None, None      # unfinished multi-line command / open here-document
         self.banner()
         if getattr(self, "fresh", False):
             pass                                            # --new: ignore the saved game
@@ -549,53 +549,95 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         if self.part:
             self.out(c("1;97", f"-> Continuing at step {self.part + 1}"))
         self.save()
+        return self.prompt()
+
+    def feed(self, line):
+        """Handle ONE typed line and return the next prompt: the normal prompt, or '> ' while a quote,
+        loop, pipe, backslash or here-document is still open. The terminal and the web page both use this."""
+        if getattr(self, "_here", None) is not None:       # inside  cat <<EOF  ...  EOF
+            h = self._here
+            text = line.lstrip("\t") if h["strip"] else line
+            if text == h["delim"]:
+                self._here = None
+                self.heredoc = ("\n".join(h["body"]), not h["quoted"])
+                self.execute(h["line"])
+                return self.prompt()
+            h["body"].append(text)
+            return "> "
+        if getattr(self, "_buf", None) is not None:        # continuation of an unfinished command
+            line = self._buf[:-1] + line if self._buf.endswith("\\") else self._buf + "\n" + line
+            self._buf = None
+        elif "!!" in line and self.typed:  # history expansion: !! = the previous command
+            line = line.replace("!!", self.typed[-1])
+            print(line)
+        if needs_more(line):         # unfinished quote, loop or pipe: bash shows the > prompt
+            self._buf = line
+            return "> "
+        m = re.search(r"<<(-?)\s*(['\"]?)([A-Za-z_]\w*)\2", line) if "<<" in line else None
+        if m:
+            self._here = {"strip": bool(m.group(1)), "quoted": bool(m.group(2)), "delim": m.group(3),
+                          "body": [], "line": line}
+            return "> "
+        self.heredoc = None
+        self.execute(line)
+        return self.prompt()
+
+    def interrupt(self):
+        """Ctrl+C: cancel the line being typed (and any unfinished command), like bash."""
+        print("^C")
+        self._buf = self._here = None
+        self.status = 130
+        return self.prompt()
+
+    def eof(self):
+        """Ctrl+D. Returns the next prompt, or None when the shell logs out."""
+        if getattr(self, "_here", None) is not None:
+            h = self._here
+            print(f"bash: warning: here-document delimited by end-of-file (wanted `{h['delim']}')")
+            self._here = None
+            self.heredoc = ("\n".join(h["body"]), not h["quoted"])
+            self.execute(h["line"])
+            return self.prompt()
+        if getattr(self, "_buf", None) is not None:
+            quote = [q for _, _, q, _ in scan(self._buf + " ")][-1]
+            if quote in ("'", '"'):
+                self.show_error(f"bash: unexpected EOF while looking for matching `{quote}'")
+            self.show_error("bash: syntax error: unexpected end of file")
+            self._buf = None
+            self.running = False
+            return None
+        if self.sessions:
+            print()
+            print(self.leave_session())
+            return self.prompt()
+        print()
+        self.running = False
+        return None
+
+    def run(self):
+        if TTY:
+            self.setup_completion()
+        prompt = self.start()
         while self.running:
             if TTY:
                 sys.stdout.write(f"\x1b]0;{USER}@{self.hostname}: {self.short_cwd()}\x07")
             try:
-                line = input(self.prompt() if TTY else "")
+                line = input(prompt if TTY else "")
             except KeyboardInterrupt:  # Ctrl+C cancels the line, like bash
-                print("^C")
-                self.status = 130
+                prompt = self.interrupt()
                 continue
             except EOFError:           # Ctrl+D (Ctrl+Z Enter on Windows) logs out
-                if self.sessions:
-                    print()
-                    print(self.leave_session())
-                    continue
-                if TTY:
+                if TTY and not self.sessions and self._buf is None and self._here is None:
                     try:
                         time.sleep(0.1)  # on Windows Ctrl+C can arrive as EOF first
                     except KeyboardInterrupt:
                         print("^C")
                         continue
-                print()
-                break
+                prompt = self.eof()
+                continue
             if not TTY:
-                print(self.prompt() + line)
-            if "!!" in line and self.typed:  # history expansion: !! = the previous command
-                line = line.replace("!!", self.typed[-1])
-                print(line)
-            while needs_more(line):         # unfinished quote, loop or pipe: bash shows the > prompt
-                try:
-                    more = input("> " if TTY else "")
-                except KeyboardInterrupt:
-                    print("^C")
-                    line = ""
-                    break
-                except EOFError:
-                    quote = [q for _, _, q, _ in scan(line + " ")][-1]
-                    if quote in ("'", '"'):
-                        self.show_error(f"bash: unexpected EOF while looking for matching `{quote}'")
-                    self.show_error("bash: syntax error: unexpected end of file")
-                    line = ""
-                    self.running = False
-                    break
-                if not TTY:
-                    print("> " + more)
-                line = line[:-1] + more if line.endswith("\\") else line + "\n" + more
-            self.heredoc = self.read_heredoc(line) if "<<" in line else None
-            self.execute(line)
+                print(prompt + line)
+            prompt = self.feed(line)
         self.save(session_open=False)
         print("logout")
 

@@ -888,5 +888,34 @@ class Cards(Short):
                 self.assertFalse(part.lower() in everything, f"help/man contains the solution '{part}'")
 
 
+
+class FeedTests(unittest.TestCase):
+    """Shell.feed() handles one typed line and returns the next prompt (used by the web page)."""
+
+    def setUp(self):
+        os.environ["PENGUIN_SAVE"] = os.path.join(tempfile.mkdtemp(), "save.json")
+        os.environ["PENGUIN_SEED"] = "1"
+        from penguin.shell import Shell
+        self.sh = Shell()
+        self.sh.start()
+
+    def test_continuation_and_heredoc(self):
+        sh = self.sh
+        self.assertEqual(sh.feed("for i in 1 2; do"), "> ")
+        self.assertEqual(sh.feed("echo $i"), "> ")
+        self.assertTrue(sh.feed("done").startswith("analyst@"))
+        self.assertEqual(sh.feed("cat <<EOF > /tmp/h.txt"), "> ")
+        self.assertEqual(sh.feed("hello"), "> ")
+        self.assertTrue(sh.feed("EOF").startswith("analyst@"))
+        self.assertEqual(sh.fs.d["/tmp/h.txt"].strip(), "hello")
+
+    def test_interrupt_and_logout(self):
+        sh = self.sh
+        sh.feed("echo 'open")
+        self.assertTrue(sh.interrupt().startswith("analyst@"))
+        self.assertIsNone(sh.eof())
+        self.assertFalse(sh.running)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

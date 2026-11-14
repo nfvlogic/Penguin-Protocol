@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Penguin Protocol</title>
+<meta name="description" content="Learn Linux by doing the job: a realistic bash simulator with 50 tickets.">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Penguin">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <main id="screen" tabindex="-1" aria-live="off">
+    <div id="out"></div>
+    <div id="line"><span id="prompt"></span><input id="input" type="text" enterkeyhint="send"
+      autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" inputmode="text"
+      aria-label="Terminal input" disabled></div>
+  </main>
+  <nav id="keys" aria-label="Extra keys">
+    <button type="button" data-k="Tab">Tab</button>
+    <button type="button" data-k="^C">Ctrl+C</button>
+    <button type="button" data-k="^D">Ctrl+D</button>
+    <button type="button" data-k="|">|</button>
+    <button type="button" data-k="&gt;">&gt;</button>
+    <button type="button" data-k="&lt;">&lt;</button>
+    <button type="button" data-k="~">~</button>
+    <button type="button" data-k="/">/</button>
+    <button type="button" data-k="-">-</button>
+    <button type="button" data-k="$">$</button>
+    <button type="button" data-k="&quot;">"</button>
+    <button type="button" data-k="'">'</button>
+    <button type="button" data-k="Up" aria-label="Previous command">&#9650;</button>
+    <button type="button" data-k="Down" aria-label="Next command">&#9660;</button>
+  </nav>
+</div>
+<div id="loading"><div><b>Penguin Protocol</b><br><span id="loadmsg">Loading the shell...</span></div></div>
+<span id="probe" aria-hidden="true">MMMMMMMMMM</span>
+<script src="app.js"></script>
+</body>
+</html>
