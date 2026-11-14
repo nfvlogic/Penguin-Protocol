@@ -40,7 +40,11 @@ body { font:14px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mon
 #kb button.on { background:var(--accent); color:#000; }
 #kb button:active { background:#f5a031; color:#000; }
 #kb button.fn:active { background:#f5a031; }
-#loading img { width:96px; height:96px; border-radius:22px; display:block; margin:0 auto 12px; }
+#loadpip { width:88px; height:96px; margin:0 auto 14px; }
+#loadpip canvas { width:100%; height:100%; display:block; image-rendering:pixelated; }
+/* Pip (pip.js): a 10x10 pixel canvas, exactly one text line tall */
+.pipr { display:inline-block; position:relative; width:5ch; height:1.35em; vertical-align:top; }
+.pipr canvas { position:absolute; left:0; top:0; height:2.7em; width:2.45em; image-rendering:pixelated; image-rendering:crisp-edges; }
 #loading b { color:var(--accent); letter-spacing:.08em; text-transform:uppercase; }
 #loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
   background:var(--bg); z-index:9; line-height:2; transition:opacity .2s; }

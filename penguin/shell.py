@@ -6,6 +6,7 @@ import shutil
 import sys
 import time
 
+from .pip import say
 from .cmd_dev import DevCommands
 from .cmd_shell import ShellCommands
 from .compound import CompoundCommands, needs_more
@@ -45,6 +46,7 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         self.plus_unlocked = False                           # becomes True when the game has been beaten
         self.running, self.status, self.tips = True, 0, True
         self.typed = []
+        self.firsts = set()        # big ideas Pip has already celebrated this game
         self.pipe_out = False      # True when stdout goes into a pipe or a file
         self.err_target = None     # list collecting errors when 2> is used
         self._failed, self._status = False, None
@@ -266,6 +268,7 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         before = (self.level, self.part)
         self.run_line(line)
         if (self.level, self.part) == before:
+            self.celebrate(line)
             self.auto_check()
             self.coach()
         if self.running:
@@ -525,6 +528,7 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
             self.out(c("1;33", "  UPLINK OPEN") + c("33", "  Cover: contractor 'analyst', badge 4821. You are inside Atlas."))
             self.out(c("33", "  Stay quiet. Leave no trace. Control is listening."))
             self.out(c("90", "  help = all commands   man <cmd> = manual   hint = help with the mission"))
+            self.out(self.pip_hello())
             return
         self.out(f"Welcome to Penguin Protocol {VERSION} (GNU/Linux 6.8.0-corp x86_64) - Atlas dev box (simulated)")
         self.out("")
@@ -541,6 +545,11 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         self.out("")
         self.out(c("1;33", "  UPLINK OPEN") + c("33", "  Cover: contractor 'analyst', badge 4821. You are inside Atlas."))
         self.out(c("33", "  Stay quiet. Leave no trace. Control is listening."))
+        self.out(self.pip_hello())
+
+    def pip_hello(self):
+        """Pip waves hello under the uplink message."""
+        return say("wave", [("33", "Agent Pip, reporting in."), ("90", "I'll be in your ear the whole way.")], self.width())
 
     def start(self):
         """Everything before the first prompt: banner, load the save, show the first ticket."""

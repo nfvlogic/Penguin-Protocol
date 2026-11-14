@@ -45,6 +45,14 @@ check
 echo Launch date field > launch_date/README.md
 cp atlas/config/*.py backup/
 mv atlas/migrations/draft.py atlas/migrations/0040_add_trademark_bu.py
+tree vault
+ls -a vault/drawer
+cat vault/drawer/.keycard
+mkdir -p loot/plans
+cp vault/shelf/plans.txt loot/plans/
+mv loot/plans/plans.txt loot/plans/floor-2.txt
+submit AMBER-17
+check
 check
 echo atlas/*.pyc
 rm atlas/*.pyc
@@ -63,6 +71,12 @@ submit approvals.py
 grep error app.log
 grep 500 app.log | grep -v synthetic
 submit /requests/new
+grep -r ALERT signals | grep -v drill
+find signals -name "*.bak"
+rm signals/relay-01.log.bak signals/relay-04.log.bak signals/archive/relay-02.log.bak
+submit relay-07.log
+submit kestrel-4
+check
 wc -l deploy.log
 tail -n 1 deploy.log
 submit v1.8.3
@@ -75,6 +89,13 @@ cut -d " " -f 1 migrations_list.txt | sort | uniq -d
 submit 0038
 grep " 500 " access.log | cut -d " " -f 3 | sort | uniq -c | sort -n -r | head -n 1
 submit /api/requests
+grep -cw DENIED transfers.log
+grep -w DENIED transfers.log | cut -d " " -f 2 | sort | uniq -c | sort -n -r | head -n 1
+tail -n 1 transfers.log
+submit 8
+submit acct-42
+submit 17:55
+check
 ./deploy.sh
 cat deploy.sh
 chmod +x deploy.sh
@@ -92,6 +113,8 @@ cp atlas/config/tst.py atlas/config/tst.py.bak
 sed 's/atlas-db-02/atlas-db-new/g' atlas/config/tst.py
 sed -i 's/atlas-db-02/atlas-db-new/g' atlas/config/tst.py
 diff atlas/config/tst.py.bak atlas/config/tst.py
+awk '{{print $4}}' traffic.log | sort | uniq -c
+submit 3
 awk '$4 == 404' traffic.log | wc -l
 grep -c 404 traffic.log
 submit {TRAFFIC_404}
@@ -99,6 +122,12 @@ awk '$4 == 404 {{print $1}}' traffic.log | sort | uniq -c | sort -n -r
 submit 10.20.30.66
 awk '$1 == "10.20.30.66" {{s += $5}} END {{print s}}' traffic.log
 submit {TRAFFIC_SUM}
+cat -A roster.csv
+tr -d '\r' < roster.csv > clean.csv
+grep -c ',active$' clean.csv
+sed -i 's/lisbon/oslo/g' clean.csv
+submit 5
+check
 awk -F, '$2 == "prd" {{s += $3}} END {{print s}}' costs.csv
 submit {COSTS_PRD}
 awk -F, '{{t[$1] += $3}} END {{for (k in t) print k, t[k]}}' costs.csv | sort -k2 -n -r
@@ -118,6 +147,15 @@ ssh analyst@atlas-prd "df -h" > prd_disk.txt
 submit /var/log
 ssh analyst@atlas-prd "ls -l /var/log/atlas | sort -k5 -n -r | head -n 1"
 submit debug.log
+ping -c 1 atlas-api
+ping -c 1 atlas-db-02
+ping -c 1 atlas-pre
+ping -c 1 gateway
+awk -F, '$1 == "guest-laptop-07" {{s += $3}} END {{print s}}' exfil.csv
+find drop -name "*.tmp" | xargs rm
+submit atlas-pre
+submit 520
+check
 curl http://atlas-api/token
 whoami
 curl "http://atlas-api/token?user=analyst"
@@ -139,6 +177,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 flask run --port 5050
+curl http://atlas-api/token
+curl "http://atlas-api/token?user=analyst"
+curl http://atlas-api/api/users > agents.json
+grep -c '"approver"' agents.json
+submit atl-4821
+submit 3
+check
 cd atlas
 source .venv/bin/activate
 flask run
@@ -167,6 +212,15 @@ submit 4127
 kill 4127
 ps aux | grep report_worker
 kill -9 4127
+cd atlas
+git status
+git branch
+git diff
+ps aux | grep exfil
+kill 5150
+submit feature/night-shift
+submit app/auth.py
+check
 ls -la atlas
 stat atlas/.env
 chmod 600 atlas/.env
@@ -192,6 +246,14 @@ flask run --port 5050
 du -s data/* | sort -n -r | head -n 3
 submit uploads
 submit {DU_UPLOADS}
+du -s cargo/* | sort -n -r | head -n 1
+systemctl --user status vault-door
+journalctl --user -u vault-door -n 5
+chmod 640 vault.conf
+systemctl --user restart vault-door
+tar -czf out/cargo.tar.gz cargo/crates
+submit crates
+check
 cat /etc/passwd | tail -n 2
 grep -c 'bash$' /etc/passwd
 submit 2
@@ -212,6 +274,13 @@ cat nightly.sh
 ./nightly.sh
 ./nightly.sh > nightly.log 2>&1
 ./nightly.sh 2> nightly.err > /dev/null
+grep -c 'nologin$' /etc/passwd
+readlink front
+ln -sfn releases/v2.0.0 front
+cat sweep.sh
+./sweep.sh 2> sweep.err > /dev/null
+submit 3
+check
 grep -r request_form atlas/app/templates
 submit request_new.html
 ls atlas/migrations
@@ -242,6 +311,13 @@ submit 03:12
 echo "incident: INC-9003" > postmortem.txt
 echo "host: atlas-db-03" >> postmortem.txt
 echo "first error: 03:12" >> postmortem.txt
+grep -r MASTERKEY core | grep -v bak
+chmod 600 core/room-c/master.key
+tar -czf exit.tar.gz core
+echo "key: omega-7" > report.txt
+echo "status: secured" >> report.txt
+submit omega-7
+check
 tasks
 """
 
@@ -255,7 +331,7 @@ def run(commands, state=None, seed=0):
     else:
         with open(path, "w") as f:
             json.dump(state, f)
-    env = dict(os.environ, PENGUIN_SAVE=path)
+    env = dict(os.environ, PENGUIN_SAVE=path, PENGUIN_FIRSTS=os.environ.get("PENGUIN_FIRSTS", "0"))
     if seed is None:
         env.pop("PENGUIN_SEED", None)
     else:
@@ -655,10 +731,10 @@ class Randomised(Short):
 
     def test_awk_and_du_answers(self):
         lv, out = self.play(2, "Who keeps asking for missing pages?", "awk '$4 == 404' traffic.log | wc -l\n")
-        self.assertEqual(answer(out, "awk '$4 == 404' traffic.log | wc -l"), lv["parts"][0][1])
-        top = lv["parts"][1][1]
+        self.assertEqual(answer(out, "awk '$4 == 404' traffic.log | wc -l"), lv["parts"][1][1])
+        top = lv["parts"][2][1]
         lv, out = self.play(2, "Who keeps asking for missing pages?", f"awk '$1 == \"{top}\" {{s += $5}} END {{print s}}' traffic.log\n")
-        self.assertEqual(answer(out, f"awk '$1 == \"{top}\" {{s += $5}} END {{print s}}' traffic.log"), lv["parts"][2][1])
+        self.assertEqual(answer(out, f"awk '$1 == \"{top}\" {{s += $5}} END {{print s}}' traffic.log"), lv["parts"][3][1])
         lv, out = self.play(3, "Who ate the disk?", "du -s data/* | sort -n -r | head -n 1\n")
         size, folder = answer(out, "du -s data/* | sort -n -r | head -n 1").split("\t")
         self.assertEqual((folder, size), ("data/" + lv["parts"][0][1], lv["parts"][1][1]))
@@ -672,6 +748,27 @@ class Randomised(Short):
         _, b = run("check\n", seed=None)
         self.assertNotEqual(a["seed"], b["seed"])                       # two new games differ
 
+    def test_pip_celebrates_each_first_once_and_explains_wrong_answers(self):
+        os.environ["PENGUIN_FIRSTS"] = "1"
+        try:
+            out, _ = run("cat welcome.txt | grep atlas\nls | head -n 1\nls > x.txt\nsubmit 8080\nsubmit 1234\n")
+        finally:
+            del os.environ["PENGUIN_FIRSTS"]
+        self.assertEqual(out.count("First pipe!"), 1)
+        self.assertIn("First redirect!", out)
+        self.assertIn("Old notes lie", out)                       # mission 1's own hand-written trap (8080 is in notes.txt)
+
+    def test_a_vault_follows_every_five_missions(self):
+        self.assertEqual([k + 1 for k, lv in enumerate(LEVELS) if lv["ticket"].startswith("VLT")], list(range(6, TOTAL + 1, 6)))
+        lv = LEVELS[5]
+        cmds = "\n".join(lv["hint"].split(" ; ")) + "\nsubmit AMBER-17\ncheck\n"
+        out, data = run(cmds, state={"ticket": "VLT-01", "best_ticket": "VLT-01"})
+        self.assertIn("VAULT 1 · Archive", out)
+        self.assertIn("BOSS", out)
+        self.assertIn("VAULT 1 CRACKED", out)
+        self.assertIn("Password for level 7", out)              # passwords come after each vault
+        self.assertEqual(data["ticket"], "ATL-106")
+
     def test_level_command_asks_for_a_password(self):
         from penguin.clearance import code_for
         out, data = run("level 10\nwrong-password\nlevel 10\n%s\n" % code_for(10))
@@ -684,19 +781,19 @@ class Randomised(Short):
         self.assertNotIn("Password for level", out)
         self.assertEqual(data["level"], 3)
         out, _ = run("level 99\nlevel x\nlevel\n")
-        self.assertIn("level: which number (1-50)?", out)
-        self.assertIn("You are on level 1 of 50", out)
+        self.assertIn(f"level: which number (1-{TOTAL})?", out)
+        self.assertIn(f"You are on level 1 of {TOTAL}", out)
 
 
 class ModesAndManuals(Short):
-    LAST = {"ticket": "ATL-150", "best_ticket": "ATL-150"}
+    LAST = {"ticket": LEVELS[-1]["ticket"], "best_ticket": LEVELS[-1]["ticket"]}
 
     def test_new_game_plus_is_locked_until_you_beat_the_game(self):
         from penguin.clearance import plus_code
         out, data = run("newgame +\nwrong\nmode\n")
         self.assertIn("New Game+ is locked. Finish the game, or type its password: ", out)
         self.assertIn("newgame: New Game+ is still locked", out)
-        self.assertIn("New Game+ unlocks when you finish all 50 tickets.", out)
+        self.assertIn(f"New Game+ unlocks when you finish all {TOTAL} tickets.", out)
         self.assertFalse(data["expert"])
         out, data = run("newgame +\n%s\ny\nmode\n" % plus_code())          # the password unlocks it on any computer
         self.assertIn("mode: New Game+", out)
@@ -708,10 +805,9 @@ class ModesAndManuals(Short):
         lv = LEVELS[-1]
         out, data = run("check\n", state=dict(self.LAST))
         self.assertFalse(data["plus"])
-        # beat the last ticket by writing its answer file lines
-        cmds = ('echo "incident: INC-9003" > postmortem.txt\necho "host: atlas-db-03" >> postmortem.txt\n'
-                'echo "first error: 03:12" >> postmortem.txt\n')
-        out, data = run("submit INC-9003\nsubmit 03:12\n" + cmds, state=dict(self.LAST))
+        # beat the last ticket (the last vault): its solution, then its answers
+        cmds = "\n".join(lv["hint"].split(" ; ")) + "\nsubmit omega-7\ncheck\n"
+        out, data = run(cmds, state=dict(self.LAST))
         self.assertIn("Mission complete", out)
         self.assertIn("New Game+ unlocked: type  newgame +", out)
         self.assertIn(plus_code(), out)
@@ -733,7 +829,7 @@ class ModesAndManuals(Short):
         out, data = run("newgame\ny\n", state=data)
         self.assertFalse(data["expert"])
         self.assertTrue(data["plus"])                                      # unlocked for good
-        self.assertIn("TOOLKIT", out.split("Start a new game?")[1])
+        self.assertIn("GOAL", out.split("Start a new game?")[1])               # back to the normal card
 
     def test_mode_cannot_be_switched(self):
         out, _ = run("mode expert\nmode\n")
@@ -848,6 +944,16 @@ def specific_parts(command):
 
 
 class Cards(Short):
+    def test_pip_never_gives_the_answer_away(self):
+        for seed in (0, 7, 42):
+            for lv in levels_for(seed):
+                goals = [lv["answer"]] if lv["answer"] else [g for _, g in (lv["parts"] or []) if not callable(g)]
+                for goal in goals:
+                    for a in (goal if isinstance(goal, tuple) else (goal,)):
+                        if len(str(a)) >= 3:
+                            for line in lv["pip"] + [lv["wrong"]]:
+                                self.assertNotIn(str(a).lower(), line.lower(), f"{lv['ticket']}: Pip says the answer '{a}'")
+
     def test_every_card_lists_the_commands_of_its_solution(self):
         for lv in ALL_LEVELS:
             card = " ".join(s + " " + e for s, _, e in lv["cmds"])

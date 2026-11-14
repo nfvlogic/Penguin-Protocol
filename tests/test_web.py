@@ -39,7 +39,8 @@ def game_output(level, commands=(), final=False):
         for cmd in commands:
             sh.execute(cmd)
         if final:
-            sh.level = 50
+            from penguin.tickets import TOTAL
+            sh.level = TOTAL
             sh.complete()
     return plain(buf.getvalue())
 
@@ -98,7 +99,7 @@ class ScriptReadsTheGame(unittest.TestCase):
         self.assertEqual((m.group(1), m.group(2)), ("Front Door", "ATL-101"))
 
     def test_final_mission_line_is_found(self):
-        self.assertIsNotNone(self.regex("final").search(game_output(50, final=True)))
+        self.assertIsNotNone(self.regex("final").search(game_output(60, final=True)))
 
     def test_a_wrong_answer_does_not_trigger_the_readout(self):
         self.assertIsNone(self.regex("m").search(game_output(1, ["submit 1"])))
@@ -124,11 +125,11 @@ class GameMessages(unittest.TestCase):
         self.assertNotIn("submit " + port, out.split("Found the port number")[-1])
 
     def test_coaching_stops_after_the_first_mission(self):
-        self.assertNotIn("->", game_output(2, ["ls"]))
+        self.assertNotIn("Pip:", game_output(2, ["ls"]))
 
     def test_next_mission_is_announced_after_a_completion(self):
         port = re.search(r"--port (\d+)", game_output(1, ["cat atlas/README.md"])).group(1)
-        self.assertIn("Next mission is above", game_output(1, ["submit " + port]))
+        self.assertIn("ATL-102  Operation", game_output(1, ["submit " + port]))     # the next card follows
 
 
 if __name__ == "__main__":

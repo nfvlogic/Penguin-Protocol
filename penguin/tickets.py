@@ -345,7 +345,7 @@ LEVELS = [
           "for pages that do not exist (HTTP 404). The path itself can contain 404 too: a plain grep would "
           "count the wrong lines.",
           "awk works with columns: $1 is the first column, $4 the fourth. It can test a column and add up numbers."],
-         "All 3 steps are answered.",
+         "All 4 steps are answered.",
          [("awk '$N == VALUE' FILE", "print only the lines where column N equals VALUE", "awk '$2 == \"GET\"' web.log"),
           ("awk '{print $N}' FILE", "print column N of every line", "awk '{print $3}' web.log"),
           ("awk '$N == V {s += $M} END {print s}' FILE", "add up column M for the matching lines, print the total at the end",
@@ -353,10 +353,11 @@ LEVELS = [
           ("a | sort | uniq -c | sort -n -r", "count and rank", "... | sort | uniq -c | sort -n -r"),
           ("wc -l", "count lines", "awk '$1 > 5' nums.txt | wc -l"), SUBMIT],
          {"traffic.log": "\n".join(TRAFFIC)},
-         parts=[("How many requests got the status 404?", TRAFFIC_404),
+         parts=[("Warm-up: print only the status column ($4). How many DIFFERENT status codes are there?", "3"),
+                ("How many requests got the status 404?", TRAFFIC_404),
                 ("Which IP address made most of those 404 requests?", "10.20.30.66"),
                 ("What is the total time in ms of ALL requests of that IP? (the time column ends in ms: awk reads the number)", TRAFFIC_SUM)],
-         hint="awk '$4 == 404' traffic.log | wc -l ; awk '$4 == 404 {print $1}' traffic.log | sort | uniq -c | sort -n -r ; "
+         hint="awk '{print $4}' traffic.log | sort | uniq -c ; awk '$4 == 404' traffic.log | wc -l ; awk '$4 == 404 {print $1}' traffic.log | sort | uniq -c | sort -n -r ; "
               "awk '$1 == \"10.20.30.66\" {s += $5} END {print s}' traffic.log"),
     task("Text tools", "ATL-121", "Cloud costs per environment", "Normal", "Finance",
          ["Finance asks what Atlas costs in the cloud. costs.csv has one line per service and environment: "
@@ -881,7 +882,11 @@ LEVELS = [
               'echo "incident: INC-9003" > postmortem.txt ; echo "host: atlas-db-03" >> postmortem.txt ; '
               'echo "first error: 03:12" >> postmortem.txt'),
 ]
+from .vaults import VAULTS, NUDGES as _VAULT_NUDGES  # noqa: E402
 from .missions import apply as _tell_story  # noqa: E402
 
+# after every 5 missions, Pip breaks into a vault: a boss mission that combines those 5 (vaults.py)
+LEVELS = [lv for k in range(0, len(LEVELS), 5) for lv in LEVELS[k:k + 5] + [VAULTS[k // 5]]]
+NUDGES.update(_VAULT_NUDGES)
 _tell_story(LEVELS)
 TOTAL = len(LEVELS)

@@ -9,6 +9,7 @@ import textwrap
 
 from .clearance import code_for, is_plus_code, level_from_code, plus_code
 from .core import HOME, LEGACY_SAVE, SAVE_FILE, TTY, ShellError, c, vlen
+from .pip import say
 from .manual import DESCRIPTION, EXAMPLES, EXIT_STATUS, HELP, MAN, SEE_ALSO
 from .tickets import LEVELS, NUDGES, TOTAL
 from .variants import levels_for
@@ -41,7 +42,13 @@ class TicketCommands:
 
     def complete(self):
         n, lv = self.level, self.ticket()
-        self.out(c("1;32", f"✓ Objective secured: Operation {lv['op']} ({lv['ticket']})"))
+        if lv["module"] == "Vault":     # a boss: the big celebration
+            self.out(say("vaultwin", [("1;33", f"VAULT {int(lv['ticket'][4:])} CRACKED"),
+                                      ("1;32", f"✓ Objective secured: Operation {lv['op']} ({lv['ticket']})"),
+                                      ("90", "Five missions, one job. You are getting good, partner.")], self.width()))
+        else:
+            self.out(say("win", [("1;32", f"✓ Objective secured: Operation {lv['op']} ({lv['ticket']})"),
+                                 ("90", "Nice work, partner.")], self.width()))
         if n == TOTAL:
             self.best, self.finished = TOTAL, True
             self.plus_unlocked = True
@@ -54,10 +61,10 @@ class TicketCommands:
                                    "no tips and one hint per ticket.") + c("90", f"\n  Password to unlock it on another computer: {plus_code()}"))
         else:
             self.best = max(self.best, n + 1)
-            self.out(c("1;36", f"Password for level {n + 1}: {code_for(n + 1)}")
-                     + c("90", f"  (keep it: type  level {n + 1}  on any computer and enter it to start here)"))
+            if lv["module"] == "Vault":     # after each vault, so a normal win stays clean (password shows it any time)
+                self.out(c("1;36", f"Password for level {n + 1}: {code_for(n + 1)}")
+                         + c("90", f"  (type  level {n + 1}  to start here later)"))
             self.start_level(n + 1)
-            self.out(c("90", "Next mission is above. Type  task  to see it again in short."))
         self.save()
 
     def next_part(self):
@@ -70,6 +77,9 @@ class TicketCommands:
         else:
             self.out(c("1;97", f"-> Step {self.part + 1}/{len(parts)}: ") + parts[self.part][0])
             self.save()
+            goal = parts[self.part][1]
+            if callable(goal) and goal(self):     # already done before it was asked for: tick it now
+                self.next_part()
 
     def auto_check(self):
         lv = self.ticket()
@@ -104,7 +114,8 @@ class TicketCommands:
             return
         self.coach_last = nxt
         msg = self.COACH[nxt][1] if nxt < len(self.COACH) else "Found the port number? Send it:  submit NUMBER"
-        self.out(c("1;36", "-> ") + c("36", msg))
+        rows = textwrap.wrap(msg, self.width() - 6)
+        self.out("\n".join([c("1;33", "Pip: ") + c("36", rows[0])] + ["      " + c("36", r) for r in rows[1:]]))
 
     def met_checks(self):
         return {k for k, (_, f) in enumerate(self.ticket()["checks"] or []) if f(self)}
@@ -238,8 +249,70 @@ class TicketCommands:
             return "Found the answer? Type:  submit ANSWER"
         return "" if "closes by itself" in lv["done"].lower() else "This one closes by itself. Type  check  to see what is missing."
 
-    def card(self):
+    def pip_card(self, w):
+        """The mission as Pip tells it: who sent you, what to do, which commands help. Nothing more."""
+        lv, n = self.ticket(), self.level
+        boss = lv["module"] == "Vault"
+        rule = c("33", "═" * w) if boss else c("90", "─" * w)
+        if boss:
+            title, count = f" ◆ VAULT {int(lv['ticket'][4:])} · {lv['op']}", f"BOSS  {n}/{TOTAL} "
+        else:
+            title, count = f" {lv['ticket']}  Operation {lv['op']}", f"{n}/{TOTAL} "
+        gap = w - len(title) - len(count)
+        lines = ["", rule, c("1;33" if boss else "1;97", title) + (" " * gap + c("1;33" if boss else "90", count) if gap >= 1 else "")]
+        hook, todo = lv["pip"]
+        lines.append(say("vault" if boss else "think", [("33", hook), todo], w))   # comes with an empty line above and below
+        if lv["parts"]:
+            k = min(self.part, len(lv["parts"]) - 1)
+            label, goal = f"STEP {k + 1}/{len(lv['parts'])}", lv["parts"][k][0]
+        else:
+            goal = lv["done"]
+            goal = goal[4].upper() + goal[5:] if goal.startswith("You ") else goal
+            label = "GOAL"
+        goal = re.sub(r"\s*\(?(closes|completes) by itself.*$", "", goal, flags=re.I) or goal   # said once, below
+        pad = max(len(label), 4) + 2
+        if lv["checks"] and not lv["parts"]:      # say exactly what has to be true, as a checklist
+            lines.append(c("1;33", " TO DO"))
+            for text, ok in self.progress():
+                mark = c("32", "[x]") if ok else "[ ]"
+                rows = textwrap.wrap(text, max(20, w - 8))
+                lines += ["   " + mark + " " + rows[0]] + ["       " + r for r in rows[1:]]
+        else:
+            for i, row in enumerate(textwrap.wrap(goal, max(20, w - pad - 2))):
+                lines.append(" " + (c("1;33", label.ljust(pad)) if i == 0 else " " * pad) + row)
+        tools = [t for t in lv["cmds"] if t[0] not in ("submit ANSWER", "check")]
+        if tools:
+            lines.append(c("1;33", " TOOLS"))
+            col = min(max(len(s) for s, _, _ in tools) + 2, 22)
+            seen = {s for lvl in self.levels[:n - 1] for s, _, _ in lvl["cmds"]}
+            for syntax, expl, example in tools:
+                text = (expl if w < 70 else f"{expl} (e.g. {example})")      # a phone in portrait: meaning only
+                new = syntax not in seen and n > 1 and not boss     # a vault only combines what you know
+                text = ("new " if new else "") + text
+                tint = lambda r, first: c("1;33", "new ") + c("90", r[4:]) if first and new else c("90", r)
+                if len(syntax) + 2 <= col and w - col - 3 >= 34:     # side by side
+                    rows = textwrap.wrap(text, w - col - 3)
+                    lines.append("   " + c("32", syntax.ljust(col)) + tint(rows[0], True))
+                    lines += ["   " + " " * col + tint(r, False) for r in rows[1:]]
+                else:                                                 # narrow screen: explanation underneath
+                    lines += ["   " + c("32", r) for r in textwrap.wrap(syntax, w - 4, break_on_hyphens=False)]
+                    lines += ["     " + tint(r, i == 0) for i, r in enumerate(textwrap.wrap(text, w - 6))]
+        done = "Found it? submit ANSWER" if self.finish_hint().startswith("Found") else "Closes by itself: check"
+        foot, row = [], ""
+        for part in (done, "Stuck? hint", "Briefing: task full"):    # never split one tip over two lines
+            if row and len(row) + 4 + len(part) > w - 1:
+                foot.append(row)
+                row = ""
+            row += ("    " if row else "") + part
+        lines += [c("90", " " + r) for r in foot + [row]]
+        lines.append(rule)
+        return "\n".join(lines) + "\n"
+
+    def card(self, full=False):
         w = self.width()
+        if not (full or self.expert):
+            self.out(self.pip_card(w))
+            return
         lines = [""] + self.card_lines(w, w >= 70)
         footer = (" New Game+: only the problem is shown.   hint (one)  man  help"
                   if self.expert else
@@ -288,11 +361,43 @@ class TicketCommands:
             raise ShellError("submit: missing answer", tip="type submit followed by what you found")
         accepted = goal if isinstance(goal, tuple) else (goal,)
         if " ".join(args).strip().lower() not in [a.lower() for a in accepted]:
-            raise ShellError("Wrong answer, try again.", tip="type hint if you are stuck")
+            self.out(say("fail", [("31", "Wrong answer, try again."), ("90", self.why_wrong(" ".join(args).strip(), accepted))],
+                         self.width()))
+            raise ShellError("")
         if lv["parts"]:
             self.next_part()
         else:
             self.complete()
+
+    def why_wrong(self, given, accepted):
+        """Pip's one-line reason for a wrong answer: the usual beginner slips, then a nudge towards hint."""
+        g, goals = given.lower().strip("'\""), [str(a).lower() for a in accepted]
+        if any(a in g and a != g for a in goals):
+            return "Close! Send only the answer itself, nothing around it."
+        if "/" in g and any(g.rstrip("/").split("/")[-1] == a for a in goals):
+            return "Just the name, not the whole path."
+        if self.ticket().get("wrong"):           # the hand-written trap of this mission
+            return self.ticket()["wrong"]
+        texts = " ".join(list(self.ticket()["files"]) + [v for v in self.ticket()["files"].values() if isinstance(v, str)]).lower()
+        if len(g) >= 3 and re.search(r"(?<![\w.-])" + re.escape(g) + r"(?![\w-])", texts):
+            return "That is in the files, but it is a decoy. Check which file is current."
+        if g.isdigit() and all(a.isdigit() for a in goals):
+            return "Not that number. Look again, or type hint."
+        return "Stuck? Type hint."
+
+    FIRSTS = [("pipe", lambda l: "|" in l.replace("||", ""), "First pipe! You chained two commands."),
+              ("redirect", lambda l: re.search(r"(^|[^2&])>", l) is not None, "First redirect! You saved output to a file."),
+              ("grep", lambda l: re.search(r"(^|[|;&]\s*)grep\b", l) is not None, "First grep! You searched without opening every file.")]
+
+    def celebrate(self, line):
+        """Pip hops the first time you use a big idea (once per game)."""
+        if self.expert or not self.tips or os.environ.get("PENGUIN_FIRSTS") == "0":   # 0: the command tests want pure output
+            return
+        for key, used, msg in self.FIRSTS:
+            if key not in self.firsts and used(line) and self.status == 0:
+                self.firsts.add(key)
+                self.out(say("win", [("1;32", msg)], self.width()))
+                return
 
     def cmd_check(self, args, stdin):
         lv = self.ticket()
@@ -320,8 +425,8 @@ class TicketCommands:
             text = "solution: " + lv["hint"]
         if self.expert:
             return c("33", "hint 1/1: ") + text + c("90", "  (New Game+: one hint per ticket - use man and help)")
-        more = "  (type hint again for more)" if self.hint_stage < 3 else ""
-        return c("33", f"hint {self.hint_stage}/3: ") + text + c("90", more)
+        more = [("90", "Type hint again for more.")] if self.hint_stage < 3 else []
+        return say("hint", [("33", f"hint {self.hint_stage}/3"), text] + more, self.width())
 
     def cmd_tasks(self, args, stdin):
         rows, module = [], None
@@ -338,7 +443,7 @@ class TicketCommands:
         if not args:
             return self.summary()
         if args[0] in ("full", "card"):
-            self.card()
+            self.card(full=True)
             return ""
         if not args[0].isdigit() or not 1 <= int(args[0]) <= TOTAL:
             raise ShellError(f"task: which number (1-{TOTAL})?", tip="example: task 1")
@@ -442,6 +547,7 @@ class TicketCommands:
         if self.sessions:                  # leaving an ssh session, not the practice shell
             return self.leave_session()
         self.save()
+        self.out(say("sleep", [("90", "Pip is off the grid. Progress saved.")], self.width()))
         self.running = False
 
     def cmd_history(self, args, stdin):

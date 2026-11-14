@@ -11,6 +11,7 @@ Modules:
   cmd_dev.py       export env python3 source pip flask git
   cmd_tickets.py   ticket cards, submit check hint tasks, save/load, help, man
   manual.py        man pages and help text
-  tickets.py       the 50 tickets (edit here to add tickets)
+  tickets.py       the 50 Atlas tickets (edit here to add tickets)
+  vaults.py        the 10 vault boss missions, one after every 5 tickets
   tickets_data.py  generated log files, CSVs and git/venv setups for the tickets
 """

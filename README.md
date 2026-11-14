@@ -5,7 +5,7 @@
 <h1 align="center">Penguin Protocol</h1>
 
 <p align="center"><b>Learn Linux by going undercover.</b><br>
-A realistic terminal simulator with 50 covert missions, from your first <code>ls</code> to a live incident.</p>
+A realistic terminal simulator with 50 covert missions and 10 vaults, from your first <code>ls</code> to a live incident.</p>
 
 <p align="center"><a href="https://nfvlogic.github.io/Penguin-Protocol/"><b>Play in your browser</b></a></p>
 
@@ -13,7 +13,7 @@ A realistic terminal simulator with 50 covert missions, from your first <code>ls
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-f5a031?labelColor=1a1a1a">
   <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-f5a031?labelColor=1a1a1a">
   <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-f5a031?labelColor=1a1a1a">
-  <img alt="Missions: 50" src="https://img.shields.io/badge/missions-50-f5a031?labelColor=1a1a1a">
+  <img alt="Missions: 60" src="https://img.shields.io/badge/missions-60-f5a031?labelColor=1a1a1a">
   <a href="https://github.com/nfvlogic/Penguin-Protocol/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/nfvlogic/Penguin-Protocol/actions/workflows/tests.yml/badge.svg"></a>
 </p>
 
@@ -28,6 +28,10 @@ Stay quiet, find the evidence, leave no trace.
 
 You solve them with real commands. The shell is a faithful simulation of bash on Ubuntu, so options, exit
 codes and error messages match what you will see on a real server.
+
+You are not alone: **Pip**, a tiny pixel penguin in an orange deerstalker, is your partner in the field. He tells
+you each mission in two lines, explains what went wrong when an answer is off, and celebrates your firsts. Every
+five missions he leads you into a **vault**: a boss mission that combines everything you just learned.
 
 > Everything runs in memory. Nothing touches your real files, so you can break things freely.
 
@@ -44,38 +48,29 @@ The first mission, solved. Every new game has its own answers, so yours will dif
 
 ```text
 ──────────────────────────────────────────────────────────────────────────
- ATL-101  Operation Front Door                                Threat: Low
- Handler: Control   Phase: Infiltration   File 1 of 50
- Password: PP-01-WYYR-3VU5
-──────────────────────────────────────────────────────────────────────────
- BRIEFING                           │ TOOLKIT (examples: other files)
- You are in. Your contractor badge  │ ls [FOLDER]
- got you through the front door of  │   list the files in a folder (e.g.
- Atlas, an internal stage-gate app  │   ls reports)
- (Flask + MySQL), and Control wants │ cat FILE
- proof that your cover holds.       │   show what is inside a file (e.g.
- Nobody questions an engineer who   │   cat notes.md)
- runs the app on their own machine, │ cd FOLDER
- so make it run.                    │   go into a folder; cd .. goes up,
-                                    │   cd ~ goes home (e.g. cd projects)
- Start with the welcome file in     │
- your home folder: it tells you     │
- where the project documentation    │
- is. Find the port the app uses     │
- when you run it locally.           │
-                                    │
- MISSION COMPLETE WHEN              │
- You submit the local port number.  │
-                                    │
- Found the answer? Type:  submit    │
- ANSWER                             │
-──────────────────────────────────────────────────────────────────────────
- Always available: ls cd pwd cat less tree man   Mission: task  check
-   hint  submit  password
+ ATL-101  Operation Front Door                                       1/60
 
+ ▄█▀█▀█▄   Your badge got you in. Prove your cover holds.
+ ▀█▀▀▀█▀   Find the port Atlas uses on your machine.
+
+ GOAL  Submit the local port number.
+ TOOLS
+   ls [FOLDER]  list the files in a folder (e.g. ls reports)
+   cat FILE     show what is inside a file (e.g. cat notes.md)
+   cd FOLDER    go into a folder; cd .. goes up, cd ~ goes home (e.g. cd
+                projects)
+ Found it? submit ANSWER    Stuck? hint    Briefing: task full
+──────────────────────────────────────────────────────────────────────────
+
+Pip: First time? Type  ls  to see what is here.
 analyst@penguin:~$ cat welcome.txt
 Welcome to the Atlas team!
 The code is in ~/atlas. Start with README.md there.
+analyst@penguin:~$ submit 8080
+
+ ▄█▀█▀█▄   Wrong answer, try again.
+ ▀█▀▀▀█▀   Old notes lie. The project README says how the app runs today.
+
 analyst@penguin:~$ cd atlas
 analyst@penguin:~/atlas$ cat README.md
 # Atlas
@@ -86,8 +81,9 @@ Run locally:
 
 More setup help: docs/setup.md
 analyst@penguin:~/atlas$ submit 5050
-✓ Objective secured: Operation Front Door (ATL-101)
-Password for level 2: PP-02-HZT3-6T2X  (keep it: type  level 2  on any computer and enter it to start here)
+
+ ▄█▀█▀█▄   ✓ Objective secured: Operation Front Door (ATL-101)
+ ▀█▀▀▀█▀   Nice work, partner.
 ```
 
 </details>
@@ -100,9 +96,14 @@ Password for level 2: PP-02-HZT3-6T2X  (keep it: type  level 2  on any computer 
   `kill`, `curl`, `chmod`, `ln` and `git`.
 - **Real permissions and errors.** Ownership, `chmod` modes and "Permission denied" behave as on Linux.
 - **Missions with a story.** Fifty briefings with codenames, handlers and phases, from your first day inside to
-  the final operation.
-- **Guided learning.** Every mission lists the tools you need, three levels of hints, and a built-in manual
-  (`man`).
+  the final operation, plus ten vaults.
+- **Pip, your partner.** A tiny animated pixel penguin who tells each mission in two lines, names the trap when an
+  answer is wrong, hops when you use your first pipe, redirect or `grep`, and dozes while the game loads.
+- **Vaults.** After every five missions comes a boss mission with its own look: gold card, Pip walking in with a
+  golden key, and a bigger celebration when you crack it.
+- **Short, clear cards.** One goal line (or a checklist), every tool with its meaning and an example, and tools you
+  have not seen before marked **new**. The full briefing is one command away (`task full`).
+- **Guided learning.** Three levels of hints and a built-in manual (`man`).
 - **Runs anywhere.** Terminal on Windows, macOS and Linux, or in the browser as an installable app.
 - **Portable progress.** Every level has a password, so you can continue on any computer.
 
@@ -140,7 +141,9 @@ Pushing to `main` publishes it with GitHub Pages (`.github/workflows/pages.yml`)
 
 ## How to play
 
-Each mission card shows the briefing, what counts as complete, and the tools you will need.
+Each mission card shows Pip's two-line briefing, the goal (or a checklist that ticks itself), and the tools you
+will need, with an example for each. `task full` shows the full briefing. Answer missions end with `submit`;
+missions marked "closes by itself" finish as soon as everything on the checklist is true (`check` shows it).
 
 ```text
 tasks           list all missions and your progress     hint          get help (3 levels)
@@ -153,13 +156,13 @@ newgame +       New Game+ (after you beat the game)     mode          show guide
 
 Finishing a mission unlocks the next one. Every new game has its own answers, saved with your progress.
 
-**Continue anywhere.** Each mission card shows the **password** of its level. On any computer, type `level 10`
-and enter the password of level 10 to start there. Levels you have already reached need no password, and
+**Continue anywhere.** After each vault the game prints the **password** of the next level. On any computer,
+type `level 10` and enter the password of level 10 to start there. Levels you have already reached need no password, and
 `password` shows the current one again. `newgame` starts over with new answers.
 
 ## New Game+
 
-Once you beat all 50 missions, **New Game+** unlocks: type `newgame +` for a new run with new answers where cards
+Once you beat all 60 missions, **New Game+** unlocks: type `newgame +` for a new run with new answers where cards
 show only the briefing, there are no tips under errors, and you get one hint per mission. It is meant to feel like
 doing the job for real, with just `man` and your memory. The password to unlock it on another computer is
 printed when you finish the game.
@@ -191,6 +194,7 @@ commands, like a real manual page.
 | Inside the walls | 7 | Processes, permissions, services, logs, archives, accounts |
 | Tradecraft | 4 | Loops, redirection, `find` with `tar`, symbolic links |
 | The final operation | 5 | Multi-step cases that combine everything |
+| The Vault | 10 | One boss after every 5 missions, combining exactly what those 5 taught |
 
 ## Testing
 
@@ -203,7 +207,9 @@ The suite runs a full walkthrough of every mission and checks the shell against 
 
 ## Contributing
 
-Add a `task(...)` entry in `penguin/tickets.py` and its codename and first paragraph in `penguin/missions.py`.
+Add a `task(...)` entry in `penguin/tickets.py`, and in `penguin/missions.py` its codename and first paragraph
+(`OPS`), Pip's two lines (`PIP`) and the trap Pip names after a wrong answer (`WRONG`). Vaults live in
+`penguin/vaults.py`.
 Card examples must use other files, folders and hosts than the mission and must never contain an answer; the tests check this. Add a first-level hint in `NUDGES`
 (`penguin/tickets_data.py`) and the solution to `WALKTHROUGH` in the tests.
 

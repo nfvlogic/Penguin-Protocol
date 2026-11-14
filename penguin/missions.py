@@ -8,15 +8,15 @@ names, numbers) of the original text: the answer variants in variants.py replace
 PHASE = {"Onboarding": "Infiltration", "Code search": "Reconnaissance", "Pipes": "Surveillance",
          "Text tools": "Forensics", "Environments": "Lateral movement", "API": "The back channel",
          "Git & Python": "Deep cover", "Servers": "Inside the walls", "Scripting": "Tradecraft",
-         "Feature work": "The final operation"}
+         "Feature work": "The final operation", "Vault": "The Vault"}
 
 HANDLER = {"Tech lead": "Control", "Platform team": "Quartermaster", "Product owner": "The Broker",
            "QA team": "Field tester", "Security team": "Counter-intel", "Monitoring": "Watchtower",
            "Code review bot": "The Auditor", "Code review": "The Auditor", "CI pipeline": "Autopilot",
            "Release manager": "The Courier", "Change board": "The Committee", "Integration team": "Contact",
-           "Finance": "The Paymaster", "Scrum master": "The Dispatcher"}
+           "Finance": "The Paymaster", "Scrum master": "The Dispatcher", "Pip": "Pip"}
 
-THREAT = {"Normal": "Low", "High": "Elevated", "Critical": "Critical"}
+THREAT = {"Normal": "Low", "High": "Elevated", "Critical": "Critical", "Boss": "Boss"}
 
 # ticket -> (operation codename, first paragraph of the briefing)
 OPS = {
@@ -146,12 +146,123 @@ OPS = {
                 "ERROR happened today, and write the post-mortem file."),
 }
 
+# ticket -> what Pip tells you on the card: (the secret mission in one line, what to do in one line).
+# Short on purpose; the full briefing is one command away (task full). Never put an answer here.
+PIP = {
+    "ATL-101": ("Your badge got you in. Prove your cover holds.", "Find the port Atlas uses on your machine."),
+    "ATL-102": ("The test floor moves to a new database soon.", "Find which DB_HOST the TST environment uses."),
+    "ATL-103": ("Atlas crashes on start-up. Someone left a trap.", "Find the right DB_NAME in the project's hidden settings."),
+    "ATL-104": ("A new feature is your excuse to make folders.", "Build the empty launch_date module."),
+    "ATL-105": ("Before you leave a trace, copy the evidence.", "Back up the configs and rename the migration."),
+    "ATL-106": ("The Auditor spotted clutter in your work.", "Delete the .pyc files and the __pycache__ folder."),
+    "ATL-107": ("Good agents leave no fingerprints.", "Create the .gitignore the briefing describes."),
+    "ATL-108": ("Someone changed the gate rules and hid it.", "Find which rules version really runs."),
+    "ATL-109": ("A developer left a secret note in the code.", "Find the file with the release blocker."),
+    "ATL-110": ("Testers hit an error page. Decoys everywhere.", "Find the real failing endpoint in app.log."),
+    "ATL-111": ("Nobody will say what runs on TST.", "Find the deployed version in deploy.log."),
+    "ATL-112": ("CI is red and the team panics.", "Count the tests that really failed."),
+    "ATL-113": ("One secret key unlocks every session.", "Count the app files that use SECRET_KEY."),
+    "ATL-114": ("Two migrations wear the same identity.", "Find the duplicated revision number."),
+    "ATL-115": ("Watchtower is flashing red.", "Find the endpoint with the most 500 errors."),
+    "ATL-116": ("The Committee wants proof before tonight.", "Read deploy.sh, run it, save its output."),
+    "ATL-117": ("A Windows file hides invisible ink.", "Clean the CSV, then count the open tickets."),
+    "ATL-118": ("TST and PRD should differ in only 3 places.", "Find the setting someone slipped in."),
+    "ATL-119": ("Move the target without anyone noticing.", "Point TST to the new database server."),
+    "ATL-120": ("A stranger is probing the network.", "Follow the 404s back to one IP address."),
+    "ATL-121": ("Follow the money.", "Add up what Atlas costs in the cloud."),
+    "ATL-122": ("Time to sweep the safe house.", "Delete every .tmp file below ~/build, nothing else."),
+    "ATL-123": ("The primary database went dark.", "Find the replica that still answers."),
+    "ATL-124": ("A silent alarm went off.", "Find the name of the server that is still down."),
+    "ATL-125": ("A server stopped writing logs.", "Ask it questions over ssh, one at a time."),
+    "ATL-126": ("Every secret handshake starts with a token.", "Get a token from the API."),
+    "ATL-127": ("The channel is guarded.", "Ask the API which stage the project is in."),
+    "ATL-128": ("Who holds the keys to the kingdom?", "Count the real admins in the user list."),
+    "ATL-129": ("Someone drained Atlas from the inside today.", "Count today's ERROR lines on the suspect server."),
+    "ATL-130": ("Your old hideout is gone.", "Build a fresh virtual environment and start the app."),
+    "ATL-131": ("No files, no paper trail.", "Set the environment variables so Atlas starts."),
+    "ATL-132": ("A colleague vanished mid-operation.", "Find out where the repository stands."),
+    "ATL-133": ("Never commit straight to main.", "Work on a new branch and add the migration."),
+    "ATL-134": ("Something slipped into your branch.", "Review your changes and undo the loose thread."),
+    "ATL-135": ("A rogue process is eating your CPU.", "Find it and stop it."),
+    "ATL-136": ("The vault doors are open.", "Give the 3 files the right permissions."),
+    "ATL-137": ("The engine will not turn over.", "Read what the service says, fix it, restart it."),
+    "ATL-138": ("Every operative needs an escape plan.", "Back up the config, check it, practice a restore."),
+    "ATL-139": ("Someone is squatting in your port.", "Find who holds it, stop it, start Atlas."),
+    "ATL-140": ("Something is swallowing the disk.", "Find the folder that really uses the most space."),
+    "ATL-141": ("Counter-intel wants the guest list.", "Find which accounts can really log in."),
+    "ATL-142": ("Watchtower wants a roll call.", "Write a script that checks every server."),
+    "ATL-143": ("Old logs say too much.", "Archive the big logs, then delete them."),
+    "ATL-144": ("The Courier needs a quiet switch.", "Point current to a new release."),
+    "ATL-145": ("The nightly script is far too noisy.", "Split its output and its errors into two files."),
+    "ATL-146": ("A blind spot in the database.", "Find the next migration number and add the column."),
+    "ATL-147": ("You are not the only intruder.", "Find who was targeted and where the attacker came from."),
+    "ATL-148": ("The PRE environment went dark.", "Find the dead server and check its fallback."),
+    "ATL-149": ("Your cover needs sprint numbers.", "Count the workflow tickets and save them."),
+    "ATL-150": ("Final operation.", "Find the open critical incident and write the post-mortem."),
+}
+
+
+# ticket -> what Pip says after a wrong answer: the trap most beginners fall into on that mission. Never an answer.
+WRONG = {
+    "ATL-101": "Old notes lie. The project README says how the app runs today.",
+    "ATL-102": "The legacy folder is the old COMPASS setup. Use the TST file in config.",
+    "ATL-103": "The hidden file in your home folder is the OLD one. Look inside the project folder.",
+    "ATL-108": "Files in old/ are leftovers. Open the rules file that is actually used.",
+    "ATL-109": "Send the file name only, like main.py.",
+    "ATL-110": "Lines marked synthetic are monitoring tests, not real errors. Hide them.",
+    "ATL-111": "The newest entry is the LAST line of deploy.log, not the first.",
+    "ATL-112": "XFAILED is not FAILED. Count whole words only.",
+    "ATL-113": "Count files, not lines: one grep option prints only file names.",
+    "ATL-114": "Look for a revision number that appears twice in the first column.",
+    "ATL-115": "Only status 500 counts. The health check is just busy, not broken.",
+    "ATL-117": "The Windows character hides the line ends. Clean the file first, then count.",
+    "ATL-118": "Let diff compare the two files: the lines with < and > are the differences.",
+    "ATL-120": "A path can contain 404 too. Test the status column only (column 4).",
+    "ATL-121": "Use the eur column (3rd). For the first question, only prd lines count.",
+    "ATL-123": "Ping both replicas: only one of them answers.",
+    "ATL-124": "Most alerts were RESOLVED. Hide those, then look the IP up in /etc/hosts.",
+    "ATL-125": "Ask atlas-prd itself through ssh. Your own disks do not count.",
+    "ATL-126": "The token endpoint wants your user name in the URL.",
+    "ATL-127": "Send your token in the Authorization header, then read the stage.",
+    "ATL-128": "admin-request is not admin. Count the exact role, quotes included.",
+    "ATL-129": "Only today's log of that one server counts.",
+    "ATL-132": "git status and git log answer these. The short hash is in git log --oneline.",
+    "ATL-134": "git diff shows the slipped-in change. git diff --staged shows what is staged.",
+    "ATL-135": "Sort ps aux by the %CPU column, biggest first. The top line is the culprit.",
+    "ATL-137": "journalctl prints the error with the full path of the file.",
+    "ATL-138": "List the archive with tar -tzf and count only the lines ending in py.",
+    "ATL-139": "ss -tlnp shows which PID listens on the port.",
+    "ATL-140": "The folder with the most files is not always the biggest. du -s measures space.",
+    "ATL-141": "The shell is the last field. Count lines that END in bash.",
+    "ATL-144": "readlink shows where current points right now.",
+    "ATL-146": "The next migration number is one more than the highest in the folder.",
+    "ATL-147": "Count the Failed lines per account. The Accepted line shows the IP.",
+    "ATL-148": "Ping the servers first. The lb configs say which one is primary.",
+    "ATL-149": "Match the component column exactly, with the commas around it.",
+    "ATL-150": "Critical AND open: both words must be on the same line.",
+    "VLT-01": "The real key card is the hidden file, not the expired one.",
+    "VLT-02": "Drills say (drill). The real alert does not.",
+    "VLT-03": "DENIED_TEST lines are drills. Count DENIED as a whole word only.",
+    "VLT-04": "Count in clean.csv: the hidden characters break counting in the original.",
+    "VLT-05": "Ping each name on the list. For the total, add up the kb column for one host only.",
+    "VLT-06": "Count the exact role with quotes, so similar words do not count.",
+    "VLT-07": "git status shows both the branch and the changed file.",
+    "VLT-08": "du -s measures space. The most files is not the most space.",
+    "VLT-09": "Count lines that END in nologin.",
+    "VLT-10": "The .bak files are decoys. Hide them from the search.",
+}
+
 
 def apply(levels):
     """Add the story to every ticket (called once, from tickets.py)."""
+    from .vaults import OPS as VOPS, PIP as VPIP
+    OPS.update(VOPS)
+    PIP.update(VPIP)
     for lv in levels:
         op, first = OPS[lv["ticket"]]
         lv["op"] = op
+        lv["pip"] = list(PIP[lv["ticket"]])
+        lv["wrong"] = WRONG.get(lv["ticket"], "")
         lv["brief"] = [first] + list(lv["brief"][1:])
         lv["phase"] = PHASE.get(lv["module"], lv["module"])
         lv["handler"] = HANDLER.get(lv["from"], lv["from"])

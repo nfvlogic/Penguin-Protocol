@@ -27,6 +27,8 @@ def swap(lv, old, new):
     lv["hint"] = fix(lv["hint"])
     lv["brief"] = [fix(t) for t in lv["brief"]]
     lv["done"] = fix(lv["done"])
+    lv["pip"] = [fix(t) for t in lv.get("pip", [])]
+    lv["wrong"] = fix(lv.get("wrong", ""))
     if lv["parts"]:
         lv["parts"] = [(fix(q), fix(g) if not callable(g) else g) for q, g in lv["parts"]]
 
@@ -146,7 +148,7 @@ def v_traffic(rng, lv):
     count = str(sum(r.split()[3] == "404" for r in rows))
     total = str(sum(int(r.split()[4][:-2]) for r in rows if r.startswith(top + " ")))
     lv["files"]["traffic.log"] = "\n".join(rows)
-    lv["parts"] = [(lv["parts"][0][0], count), (lv["parts"][1][0], top), (lv["parts"][2][0], total)]
+    lv["parts"] = [lv["parts"][0], (lv["parts"][1][0], count), (lv["parts"][2][0], top), (lv["parts"][3][0], total)]   # [0]: the warm-up
     lv["hint"] = lv["hint"].replace("10.20.30.66", top)
 
 
@@ -209,7 +211,7 @@ VARIANTS = {
 
 
 def levels_for(seed):
-    """The 50 tickets for a game. Seed 0 is the classic version used by the tests."""
+    """The 60 missions (50 tickets and 10 vaults) for a game. Seed 0 is the classic version used by the tests."""
     if not seed:
         return LEVELS
     levels = copy.deepcopy(LEVELS)

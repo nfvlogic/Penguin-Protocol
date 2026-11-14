@@ -35,7 +35,7 @@ const history = []; let hpos = 0, draft = "";
 let tabCount = 0;
 
 // ------------------------------------------------------------------ ANSI -> HTML
-const ANSI_RE = /\x1b\[([0-9;?]*)([A-Za-z])|\x1b\][^\x07]*\x07/g;
+const ANSI_RE = /\x1b\[([0-9;?]*)([A-Za-z])|\x1b\]([^\x07]*)\x07/g;
 function Ansi() { this.cls = new Set(); }
 Ansi.prototype.sgr = function (params) {
   const codes = params === "" ? [0] : params.split(";").map((n) => parseInt(n || "0", 10));
@@ -53,9 +53,9 @@ Ansi.prototype.sgr = function (params) {
 // Turns text with ANSI codes into DOM nodes appended to `parent`. Returns true if the screen was cleared.
 Ansi.prototype.render = function (text, parent, onClear) {
   text = text.replace(/\r\n/g, "\n").replace(/\r/g, "");
-  let last = 0, m;
+  let last = 0, m, pip = null;             // pip: inside one of Pip's rows (pip.js draws it, the text is a placeholder)
   const put = (s) => {
-    if (!s) return;
+    if (!s || pip) return;
     if (this.cls.size === 0) { parent.appendChild(document.createTextNode(s)); return; }
     const sp = document.createElement("span");
     sp.className = [...this.cls].join(" ");
@@ -66,7 +66,11 @@ Ansi.prototype.render = function (text, parent, onClear) {
   while ((m = ANSI_RE.exec(text))) {
     put(text.slice(last, m.index));
     last = ANSI_RE.lastIndex;
-    if (m[2] === "m") this.sgr(m[1]);
+    if (m[3] !== undefined) {
+      const [kind, mood, row] = m[3].split(";");
+      if (kind === "pip" && mood === "end") pip = null;
+      else if (kind === "pip" && typeof Pip === "object") { pip = document.createElement("span"); parent.appendChild(pip); Pip.row(pip, mood, +row || 0); }
+    } else if (m[2] === "m") this.sgr(m[1]);
     else if (m[2] === "J" && (m[1] === "2" || m[1] === "3")) { onClear && onClear(); }
   }
   put(text.slice(last));
@@ -89,6 +93,7 @@ const BOOT = `
 import os, sys, builtins, getpass, traceback
 import js
 os.environ["PENGUIN_TTY"] = "1"
+os.environ["PENGUIN_WEB"] = "1"
 os.environ["PENGUIN_SAVE"] = "${SAVE_PATH}"
 os.environ["COLUMNS"] = "80"
 sys.path.insert(0, "/home/pyodide/game")
@@ -201,7 +206,7 @@ const REDUCE = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let cap = null, animating = false, skip = false;
 const nap = (ms) => (skip ? Promise.resolve() : sleep(ms));
-const bump = () => { if (animating) skip = true; };
+const bump = () => { if (animating) skip = true; if (typeof Pip === "object") Pip.freeze(); };
 window.addEventListener("pointerdown", bump, true);
 window.addEventListener("keydown", bump, true);
 
@@ -231,7 +236,7 @@ async function replay(parts, cascade, budget = 1000) {
 
 // "sending answer ... sent" then "verifying ATL-101 [##########] PASSED", about 1.5 s in all.
 async function answerLog(isSubmit, text) {
-  const m = /Objective secured: Operation (.+?) \((ATL-\d+)\)/.exec(text);
+  const m = /Objective secured: Operation (.+?) \(((?:ATL|VLT)-\d+)\)/.exec(text);
   const final = /Mission complete: all (\d+) objectives/.test(text);
   if (!isSubmit && !m) return;
   const box = document.createElement("div"); box.className = "verify"; out.appendChild(box);
@@ -239,8 +244,8 @@ async function answerLog(isSubmit, text) {
   if (isSubmit) {
     const l = document.createElement("div"), msg = document.createElement("span"), st = document.createElement("span");
     msg.className = "hl"; st.className = "dm"; l.append(msg, st); box.appendChild(l);
-    const frames = "|/-\\";
-    for (let k = 0; k < 5; k++) { msg.textContent = "sending answer to Control ... "; st.textContent = frames[k % 4]; scrollDown(); await nap(70); }
+    const frames = ["·", "+", "✳", "❄", "✳", "+"];
+    for (let k = 0; k < 6; k++) { msg.textContent = "sending answer to Control ... "; st.textContent = frames[k]; scrollDown(); await nap(70); }
     st.textContent = "sent"; st.className = "ok";
     await nap(100);
   }
@@ -536,6 +541,7 @@ applyKbd();
 
 (async function main() {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if (typeof Pip === "object") Pip.mount($("loadpip"), "sleep");
   try {
     await loadPython();
     $("loading").classList.add("done");
