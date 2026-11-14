@@ -60,6 +60,8 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         self.hostname, self.sessions, self.merging = HOST, [], False
         self.venv, self.installed, self.flask_ran, self.flask_port = None, {}, False, None
         self.repo, self.mark, self.hint_stage, self.ran = None, {}, 0, set()
+        self.coach_last = -1                                 # first-mission coaching: which nudge was shown last
+        self.checks_done = None                              # which "closes by itself" requirements are already met
 
     # ------------------------------------------------------------ output
     def out(self, text):
@@ -265,6 +267,7 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         self.run_line(line)
         if (self.level, self.part) == before:
             self.auto_check()
+            self.coach()
         if self.running:
             self.save()
 
@@ -516,6 +519,13 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
     def banner(self):
         if TTY:
             sys.stdout.write("\x1b[3J\x1b[2J\x1b[H")  # clear screen and scrollback
+        if self.width() < 70:      # a phone: skip the system-information block so the first mission is on screen
+            self.out(f"Welcome to Penguin Protocol {VERSION} (Atlas dev box, simulated)")
+            self.out("")
+            self.out(c("1;33", "  UPLINK OPEN") + c("33", "  Cover: contractor 'analyst', badge 4821. You are inside Atlas."))
+            self.out(c("33", "  Stay quiet. Leave no trace. Control is listening."))
+            self.out(c("90", "  help = all commands   man <cmd> = manual   hint = help with the mission"))
+            return
         self.out(f"Welcome to Penguin Protocol {VERSION} (GNU/Linux 6.8.0-corp x86_64) - Atlas dev box (simulated)")
         self.out("")
         self.out(f"  System information as of {NOW}")

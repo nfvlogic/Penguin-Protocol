@@ -35,7 +35,9 @@ class TicketCommands:
                 self.fs.write(path, text)
         if lv["setup"]:
             lv["setup"](self)
+        self.checks_done = self.met_checks()
         self.card()
+        self.coach()
 
     def complete(self):
         n, lv = self.level, self.ticket()
@@ -55,6 +57,7 @@ class TicketCommands:
             self.out(c("1;36", f"Password for level {n + 1}: {code_for(n + 1)}")
                      + c("90", f"  (keep it: type  level {n + 1}  on any computer and enter it to start here)"))
             self.start_level(n + 1)
+            self.out(c("90", "Next mission is above. Type  task  to see it again in short."))
         self.save()
 
     def next_part(self):
@@ -75,8 +78,36 @@ class TicketCommands:
                 goal = lv["parts"][self.part][1]
                 if callable(goal) and goal(self):
                     self.next_part()
-        elif lv["checks"] and all(f(self) for _, f in lv["checks"]):
-            self.complete()
+        elif lv["checks"]:
+            met = self.met_checks()
+            if len(met) == len(lv["checks"]):
+                self.complete()
+                return
+            if self.checks_done is not None:       # tell the player each time one more requirement is satisfied
+                for k in sorted(met - self.checks_done):
+                    self.out(c("1;32", f"✓ Requirement met ({len(met)}/{len(lv['checks'])}): ") + lv["checks"][k][0])
+            self.checks_done = met
+
+    # The first mission also coaches: one short nudge at a time, until the player has used the basic commands.
+    COACH = [
+        (lambda t: any(x.split()[0] == "ls" for x in t if x.split()), "First time? Type  ls  to see what is here."),
+        (lambda t: any("cat" in x.split() and "welcome" in x for x in t), "Good. Now read the welcome file:  cat welcome.txt"),
+        (lambda t: any(x.startswith("cd") and "atlas" in x for x in t), "It points to a folder. Go inside:  cd atlas"),
+        (lambda t: any("README" in x for x in t), "Now read the project file there:  cat README.md"),
+    ]
+
+    def coach(self):
+        if self.level != 1 or self.part or self.expert or not self.tips:
+            return
+        nxt = next((k for k, (done, _) in enumerate(self.COACH) if not done(self.typed)), len(self.COACH))
+        if nxt == self.coach_last:
+            return
+        self.coach_last = nxt
+        msg = self.COACH[nxt][1] if nxt < len(self.COACH) else "Found the port number? Send it:  submit NUMBER"
+        self.out(c("1;36", "-> ") + c("36", msg))
+
+    def met_checks(self):
+        return {k for k, (_, f) in enumerate(self.ticket()["checks"] or []) if f(self)}
 
     def progress(self):
         lv = self.ticket()
@@ -155,6 +186,8 @@ class TicketCommands:
             body += [c("1;33", " MISSION COMPLETE WHEN")] + [" " + t for t in textwrap.wrap(lv["done"], w - 2)]
             return lines + body + [rule]
 
+        compact = not two        # one column (a phone): shorter toolkit, no examples
+
         def build(lw, rw):
             left = [c("1;33", " BRIEFING")]
             for para in lv["brief"]:
@@ -167,13 +200,15 @@ class TicketCommands:
                     left += [f" {mark} {wrapped[0]}"] + ["     " + s for s in wrapped[1:]]
                 left.append("")
             left += [c("1;33", " MISSION COMPLETE WHEN")] + [" " + s for s in textwrap.wrap(lv["done"], lw - 1)]
-            left += [""] + [c("1;36", " " + s) for s in textwrap.wrap(self.finish_hint(), lw - 1)]
-            right = [c("1;33", "TOOLKIT (examples: other files)")]
+            hint = self.finish_hint()
+            if hint:
+                left += [""] + [c("1;36", " " + s) for s in textwrap.wrap(hint, lw - 1)]
+            right = [c("1;33", "TOOLKIT" if compact else "TOOLKIT (examples: other files)")]
             for syntax, expl, example in lv["cmds"]:
                 if syntax in ("submit ANSWER", "check"):  # always available: listed in the footer
                     continue
                 right += [c("32", s) for s in textwrap.wrap(syntax, rw)]
-                right += [c("90", "  " + s) for s in textwrap.wrap(f"{expl} (e.g. {example})", rw - 2)]
+                right += [c("90", "  " + s) for s in textwrap.wrap(expl if compact else f"{expl} (e.g. {example})", rw - 2)]
             return left, right
         if two:  # pick the column split that makes the card shortest
             best = None
@@ -201,14 +236,15 @@ class TicketCommands:
             by_answer = not lv["checks"]
         if by_answer:
             return "Found the answer? Type:  submit ANSWER"
-        return "This one closes by itself. Type  check  to see what is missing."
+        return "" if "closes by itself" in lv["done"].lower() else "This one closes by itself. Type  check  to see what is missing."
 
     def card(self):
         w = self.width()
         lines = [""] + self.card_lines(w, w >= 70)
         footer = (" New Game+: only the problem is shown.   hint (one)  man  help"
                   if self.expert else
-                  " Always available: ls cd pwd cat less tree man   Mission: task  check  hint  submit  password")
+                  " Always available: ls cd pwd cat less tree man   Mission: task  check  hint  submit  password"
+                  if w >= 70 else " Always: ls cd pwd cat less tree man   Also: task check hint submit")
         lines += [c("90", row) for row in ([" " + r for r in textwrap.wrap(footer.strip(), w - 2, subsequent_indent="  ")] if vlen(footer) > w else [footer])]
         lines += [""]
         self.out("\n".join(lines))

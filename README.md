@@ -44,7 +44,7 @@ The first mission, solved. Every new game has its own answers, so yours will dif
 
 ```text
 ──────────────────────────────────────────────────────────────────────────
- ATL-101  Operation Front Door                                Threat: Low 
+ ATL-101  Operation Front Door                                Threat: Low
  Handler: Control   Phase: Infiltration   File 1 of 50
  Password: PP-01-WYYR-3VU5
 ──────────────────────────────────────────────────────────────────────────
@@ -58,14 +58,17 @@ The first mission, solved. Every new game has its own answers, so yours will dif
  runs the app on their own machine, │ cd FOLDER
  so make it run.                    │   go into a folder; cd .. goes up,
                                     │   cd ~ goes home (e.g. cd projects)
- Start with the welcome file in     │ 
- your home folder: it tells you     │ 
- where the project documentation    │ 
- is. Find the port the app uses     │ 
- when you run it locally.           │ 
-                                    │ 
- MISSION COMPLETE WHEN              │ 
- You submit the local port number.  │ 
+ Start with the welcome file in     │
+ your home folder: it tells you     │
+ where the project documentation    │
+ is. Find the port the app uses     │
+ when you run it locally.           │
+                                    │
+ MISSION COMPLETE WHEN              │
+ You submit the local port number.  │
+                                    │
+ Found the answer? Type:  submit    │
+ ANSWER                             │
 ──────────────────────────────────────────────────────────────────────────
  Always available: ls cd pwd cat less tree man   Mission: task  check
    hint  submit  password
@@ -120,6 +123,11 @@ Requires Python 3.10 or newer. No packages to install.
 The same game runs in a web page (the real Python code, through Pyodide) and installs like an app. On an iPhone
 open the page in Safari, then Share, Add to Home Screen. It works offline after the first load and keeps your
 progress on the device.
+
+On a phone held upright the page shows its own on-screen keyboard, with a row of terminal keys (Tab, Ctrl+C,
+Ctrl+D, `|`, `>`, `<`, `~`, `/`, `-`, `$`, quotes and history arrows) above it. The Kbd key switches between that
+keyboard, the phone's own keyboard and none. On a computer, or with the phone on its side, the normal keyboard is
+used. Tapping the output hides the keyboard; tapping the prompt brings it back.
 
 To build and try it locally:
 
@@ -191,6 +199,7 @@ cd tests && python -m unittest -v
 ```
 
 The suite runs a full walkthrough of every mission and checks the shell against real Linux behaviour.
+`tests/test_web.py` checks that the web page, its script and the game agree with each other (it needs no browser).
 
 ## Contributing
 
