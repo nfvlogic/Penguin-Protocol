@@ -15,7 +15,7 @@ if not errorlevel 1 (
     goto end
 )
 
-echo Install Python 3 from the Microsoft Store or python.org
+echo Install Python 3.10 or newer from the Microsoft Store or python.org
 
 :end
 pause

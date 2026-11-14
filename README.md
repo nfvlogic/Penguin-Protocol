@@ -10,7 +10,7 @@ A realistic terminal simulator with 50 covert missions, from your first <code>ls
 <p align="center"><a href="https://nfvlogic.github.io/Penguin-Protocol/"><b>Play in your browser</b></a></p>
 
 <p align="center">
-  <img alt="Python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-f5a031?labelColor=1a1a1a">
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-f5a031?labelColor=1a1a1a">
   <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-f5a031?labelColor=1a1a1a">
   <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-f5a031?labelColor=1a1a1a">
   <img alt="Missions: 50" src="https://img.shields.io/badge/missions-50-f5a031?labelColor=1a1a1a">
@@ -111,7 +111,7 @@ Password for level 2: PP-02-HZT3-6T2X  (keep it: type  level 2  on any computer 
 | macOS / Linux | Double-click `PenguinProtocol.command` (first time: right-click, Open) |
 | Any terminal | `python3 penguin.py` (Windows: `py -3 penguin.py`) |
 
-Requires Python 3.9 or newer. No packages to install.
+Requires Python 3.10 or newer. No packages to install.
 
 ## Play in the browser
 

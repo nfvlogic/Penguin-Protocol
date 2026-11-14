@@ -8,6 +8,7 @@ const MAX_CHILDREN = 4000;
 
 const $ = (id) => document.getElementById(id);
 const out = $("out"), promptEl = $("prompt"), input = $("input"), screen = $("screen");
+function fit() { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; }
 let py = null, api = null, busy = true, alive = false;
 const history = []; let hpos = 0, draft = "";
 let tabCount = 0;
@@ -171,8 +172,9 @@ async function loadPython() {
 }
 
 // ------------------------------------------------------------------ the terminal
-function setBusy(b) { busy = b; input.disabled = b || !alive; }
+function setBusy(b) { busy = b; input.readOnly = b; input.disabled = !alive; }
 
+let marker = null;
 function after(promptText) {
   persist();
   if (api.running()) {
@@ -185,8 +187,16 @@ function after(promptText) {
     write("\n\x1b[90m[Session closed. Tap here to log in again]\x1b[0m\n");
   }
   setBusy(false);
-  scrollDown();
-  if (alive) focusInput();
+  if (marker && marker.isConnected) scrollToNew(marker); else scrollDown();
+  if (alive && FINE_POINTER) focusInput();       // on a computer keep typing; on a phone the keyboard stays as the user left it
+}
+
+// After a command: if its output is taller than the screen (a mission briefing), show it from the top,
+// otherwise stay at the bottom with the prompt.
+function scrollToNew(marker) {
+  const top = marker.offsetTop - screen.offsetTop;
+  if (screen.scrollHeight - top > screen.clientHeight) screen.scrollTop = Math.max(0, top - 4);
+  else scrollDown();
 }
 
 function focusInput() { if (!input.disabled) input.focus({ preventScroll: true }); }
@@ -197,9 +207,10 @@ function showPrompt(p) { currentPrompt = p; setPrompt(p); }
 async function submit() {
   if (busy || !alive) return;
   const line = input.value;
-  input.value = ""; tabCount = 0;
+  input.value = ""; fit(); tabCount = 0;
   // echo what was typed, with the coloured prompt
   const p = document.createElement("span"); out.appendChild(p);
+  marker = p;
   new Ansi().render(currentPrompt, p);
   out.appendChild(document.createTextNode(line + "\n"));
   if (line.trim() && history[history.length - 1] !== line) history.push(line);
@@ -218,7 +229,7 @@ async function control(kind) {
     const p = document.createElement("span"); out.appendChild(p);
     new Ansi().render(currentPrompt, p);
     out.appendChild(document.createTextNode(input.value));
-    input.value = "";
+    input.value = ""; fit();
     const next = api.interrupt(); showPrompt(next); after(next);
   } else if (kind === "^D") {
     if (input.value) return;                            // like bash: Ctrl+D only acts on an empty line
@@ -228,7 +239,7 @@ async function control(kind) {
 
 function insertAtCursor(text) {
   const s = input.selectionStart ?? input.value.length, e = input.selectionEnd ?? s;
-  input.setRangeText(text, s, e, "end");
+  input.setRangeText(text, s, e, "end"); fit();
   focusInput();
 }
 
@@ -236,7 +247,7 @@ function historyStep(dir) {
   if (!history.length) return;
   if (hpos === history.length) draft = input.value;
   hpos = Math.min(Math.max(hpos + dir, 0), history.length);
-  input.value = hpos === history.length ? draft : history[hpos];
+  input.value = hpos === history.length ? draft : history[hpos]; fit();
   const n = input.value.length; input.setSelectionRange(n, n);
 }
 
@@ -251,11 +262,11 @@ function tab() {
   for (const m of matches) { while (!m.startsWith(common)) common = common.slice(0, -1); }
   if (matches.length === 1) {
     const add = matches[0].endsWith("/") ? "" : " ";
-    input.value = before.slice(0, before.length - text.length) + matches[0] + add + after_;
+    input.value = before.slice(0, before.length - text.length) + matches[0] + add + after_; fit();
     const n = before.length - text.length + matches[0].length + add.length; input.setSelectionRange(n, n);
   } else {
     if (common.length > text.length) {
-      input.value = before.slice(0, before.length - text.length) + common + after_;
+      input.value = before.slice(0, before.length - text.length) + common + after_; fit();
       const n = before.length - text.length + common.length; input.setSelectionRange(n, n);
     } else {
       const p = document.createElement("span"); out.appendChild(p);
@@ -273,6 +284,7 @@ async function startSession() {
 }
 
 // ------------------------------------------------------------------ wiring
+input.addEventListener("input", fit);
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); submit(); }
   else if (e.key === "ArrowUp") { e.preventDefault(); historyStep(-1); }
@@ -287,17 +299,20 @@ $("keys").addEventListener("pointerdown", (e) => { if (e.target.closest("button"
 $("keys").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   const k = b.dataset.k;
-  if (k === "Tab") tab();
+  if (k === "Kbd") { if (document.activeElement === input) input.blur(); else focusInput(); }
+  else if (k === "Tab") tab();
   else if (k === "^C" || k === "^D") control(k);
   else if (k === "Up") historyStep(-1);
   else if (k === "Down") historyStep(1);
   else insertAtCursor(k);
 });
 
-screen.addEventListener("click", () => {
+const FINE_POINTER = window.matchMedia && matchMedia("(pointer: fine)").matches;
+screen.addEventListener("click", (e) => {
   if (getSelection().toString()) return;               // let people select text
   if (!alive && api && !busy) { startSession(); return; }
-  focusInput();
+  if (e.target.closest("#line")) focusInput();         // tap the prompt: type
+  else if (document.activeElement === input) input.blur();   // tap the text: hide the keyboard to read
 });
 
 if (window.visualViewport) {

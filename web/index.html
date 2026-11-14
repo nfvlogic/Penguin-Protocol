@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
 <title>Penguin Protocol</title>
 <meta name="description" content="Learn Linux by doing the job: a realistic bash simulator with 50 tickets.">
 <meta name="theme-color" content="#000000">
@@ -19,11 +19,13 @@
 <div id="app">
   <main id="screen" tabindex="-1" aria-live="off">
     <div id="out"></div>
-    <div id="line"><span id="prompt"></span><input id="input" type="text" enterkeyhint="send"
-      autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" inputmode="text"
-      aria-label="Terminal input" disabled></div>
+    <div id="line"><span id="prompt"></span><textarea id="input" rows="1" enterkeyhint="send" name="penguin-command"
+      autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" inputmode="text"
+      aria-autocomplete="none" data-lpignore="true" data-1p-ignore data-form-type="other"
+      aria-label="Terminal input" disabled></textarea></div>
   </main>
   <nav id="keys" aria-label="Extra keys">
+    <button type="button" data-k="Kbd" aria-label="Show or hide the keyboard">Kbd</button>
     <button type="button" data-k="Tab">Tab</button>
     <button type="button" data-k="^C">Ctrl+C</button>
     <button type="button" data-k="^D">Ctrl+D</button>
