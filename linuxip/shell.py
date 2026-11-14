@@ -360,7 +360,7 @@ class Shell(FileCommands, TextCommands, SysCommands, NetworkCommands, DevCommand
     def banner(self):
         if TTY:
             sys.stdout.write("\x1b[3J\x1b[2J\x1b[H")  # clear screen and scrollback
-        self.out("Welcome to LinuxIP 6.1 (GNU/Linux 6.8.0-corp x86_64) - Horizon dev box (simulated)")
+        self.out("Welcome to Penguin Protocol 6.1 (GNU/Linux 6.8.0-corp x86_64) - Horizon dev box (simulated)")
         self.out("")
         self.out(f"  System information as of {NOW}")
         self.out("")

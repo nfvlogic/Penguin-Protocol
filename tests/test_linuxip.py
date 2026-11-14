@@ -1,4 +1,4 @@
-"""Tests for LinuxIP. Run from the LinuxIP folder:   cd tests && python -m unittest -v
+"""Tests for Penguin Protocol. Run from the project folder:   cd tests && python -m unittest -v
 
 Uses only the standard library. The game runs in a subprocess with piped input, so
 output is plain text (no colours). A temporary save file is used, your progress is safe.

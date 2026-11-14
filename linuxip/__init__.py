@@ -1,4 +1,4 @@
-"""LinuxIP - a Linux practice shell for the Horizon team (simulated, safe to experiment in).
+"""Penguin Protocol - a Linux practice shell for the Horizon team (simulated, safe to experiment in).
 
 Modules:
   core.py          constants, colours, ShellError
