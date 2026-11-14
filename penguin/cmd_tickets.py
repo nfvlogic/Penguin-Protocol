@@ -167,6 +167,7 @@ class TicketCommands:
                     left += [f" {mark} {wrapped[0]}"] + ["     " + s for s in wrapped[1:]]
                 left.append("")
             left += [c("1;33", " MISSION COMPLETE WHEN")] + [" " + s for s in textwrap.wrap(lv["done"], lw - 1)]
+            left += [""] + [c("1;36", " " + s) for s in textwrap.wrap(self.finish_hint(), lw - 1)]
             right = [c("1;33", "TOOLKIT (examples: other files)")]
             for syntax, expl, example in lv["cmds"]:
                 if syntax in ("submit ANSWER", "check"):  # always available: listed in the footer
@@ -189,6 +190,18 @@ class TicketCommands:
             left, right = build(w - 1, w - 1)
             lines += left + [""] + [" " + r for r in right]
         return lines + [rule]
+
+    def finish_hint(self):
+        """One line telling the player how this ticket gets closed (new players do not know about submit)."""
+        lv = self.ticket()
+        if lv["parts"]:
+            goal = lv["parts"][min(self.part, len(lv["parts"]) - 1)][1]
+            by_answer = not callable(goal)
+        else:
+            by_answer = not lv["checks"]
+        if by_answer:
+            return "Found the answer? Type:  submit ANSWER"
+        return "This one closes by itself. Type  check  to see what is missing."
 
     def card(self):
         w = self.width()

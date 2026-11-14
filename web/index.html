@@ -20,12 +20,12 @@
   <main id="screen" tabindex="-1" aria-live="off">
     <div id="out"></div>
     <div id="line"><span id="prompt"></span><textarea id="input" rows="1" enterkeyhint="send" name="penguin-command"
-      autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" inputmode="text"
+      autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" inputmode="none"
       aria-autocomplete="none" data-lpignore="true" data-1p-ignore data-form-type="other"
       aria-label="Terminal input" disabled></textarea></div>
   </main>
   <nav id="keys" aria-label="Extra keys">
-    <button type="button" data-k="Kbd" aria-label="Show or hide the keyboard">Kbd</button>
+    <button type="button" data-k="Kbd" id="kbdkey" aria-label="Keyboard mode"><span>Kbd</span><small id="kbdstate"></small></button>
     <button type="button" data-k="Tab">Tab</button>
     <button type="button" data-k="^C">Ctrl+C</button>
     <button type="button" data-k="^D">Ctrl+D</button>
@@ -41,6 +41,7 @@
     <button type="button" data-k="Up" aria-label="Previous command">&#9650;</button>
     <button type="button" data-k="Down" aria-label="Next command">&#9660;</button>
   </nav>
+  <div id="kb" role="group" aria-label="Keyboard"></div>
 </div>
 <div id="loading"><div><img src="icon-192.png" alt=""><b>Penguin Protocol</b><br><span id="loadmsg">Loading the shell...</span></div></div>
 <span id="probe" aria-hidden="true">MMMMMMMMMM</span>

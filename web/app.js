@@ -52,7 +52,9 @@ Ansi.prototype.render = function (text, parent, onClear) {
 };
 const outAnsi = new Ansi();
 function clearScreen() { out.textContent = ""; }
+let cmdText = "";                                       // everything the game printed for the current command
 function write(text) {
+  cmdText += text;
   outAnsi.render(text, out, clearScreen);
   while (out.childNodes.length > MAX_CHILDREN) out.removeChild(out.firstChild);
 }
@@ -171,6 +173,29 @@ async function loadPython() {
   };
 }
 
+// ------------------------------------------------------------------ mission-complete readout
+// Printed inside the terminal, right above the "Objective secured" line, like a fast test run with an upload bar.
+const TOTAL_LEVELS = 50;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function celebrate(text) {
+  const m = /Objective secured: Operation (.+?) \((ATL-\d+)\)/.exec(text);
+  if (!m) return;
+  const final = /Mission complete: all (\d+) objectives/.test(text);
+  const anchor = [...out.querySelectorAll("span.f32")].reverse().find((e) => e.textContent.includes("Objective secured"));
+  if (!anchor) return;
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // one line, redrawn in place: sending [######----]  60%  ->  sent [##########] PASSED
+  const line = document.createElement("div"); line.className = "verify";
+  const lbl = document.createElement("span"), res = document.createElement("span");
+  lbl.className = "hl"; res.className = "ok";
+  line.append(lbl, res);
+  out.insertBefore(line, anchor);
+  const draw = (k) => { lbl.textContent = "sending " + m[2] + " [" + "#".repeat(k) + "-".repeat(10 - k) + "] " + (k < 10 ? String(k * 10).padStart(3) + "%" : ""); res.textContent = k < 10 ? "" : "PASSED"; };
+  if (reduce) { draw(10); return; }
+  for (let k = 0; k <= 10; k++) { draw(k); await sleep(k === 10 ? 0 : 60); }
+  if (final) { line.append(document.createTextNode("  you were never here.")); }
+}
+
 // ------------------------------------------------------------------ the terminal
 function setBusy(b) { busy = b; input.readOnly = b; input.disabled = !alive; }
 
@@ -188,6 +213,7 @@ function after(promptText) {
   }
   setBusy(false);
   if (marker && marker.isConnected) scrollToNew(marker); else scrollDown();
+  celebrate(cmdText); cmdText = "";
   if (alive && FINE_POINTER) focusInput();       // on a computer keep typing; on a phone the keyboard stays as the user left it
 }
 
@@ -207,7 +233,7 @@ function showPrompt(p) { currentPrompt = p; setPrompt(p); }
 async function submit() {
   if (busy || !alive) return;
   const line = input.value;
-  input.value = ""; fit(); tabCount = 0;
+  input.value = ""; fit(); tabCount = 0; cmdText = "";
   // echo what was typed, with the coloured prompt
   const p = document.createElement("span"); out.appendChild(p);
   marker = p;
@@ -236,6 +262,118 @@ async function control(kind) {
     const next = api.eof(); showPrompt(next || ""); after(next);
   }
 }
+
+// ------------------------------------------------------------------ our own on-screen keyboard
+const KBD_KEY = "penguin_kbd";
+const KBD_MODES = ["own", "native", "off"];
+const KBD_LABEL = { own: "own", native: "phone", off: "off" };
+const FINE_POINTER = window.matchMedia && matchMedia("(pointer: fine)").matches;
+const PAGES = {
+  abc: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
+  num: ["1234567890", "-/:;()$&@\"", ".,?!'"],
+  sym: ["[]{}#%^*+=", "_\\|~<>`;&@", ".,?!'"],
+};
+const kb = $("kb");
+let kbdMode = "native", page = "abc", shift = 0;          // shift: 0 off, 1 one letter, 2 caps lock
+let lastShiftTap = 0;
+// A phone or tablet (touch is the main input) gets our keyboard in portrait, with the Kbd key to switch it off or to the phone's own.
+// A computer already has a keyboard: no on-screen one, and the Kbd key is hidden.
+const TOUCH = !FINE_POINTER && (matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0);
+if (TOUCH) {
+  kbdMode = "own";
+  try { const m = localStorage.getItem(KBD_KEY); if (KBD_MODES.includes(m)) kbdMode = m; } catch (e) { /* default */ }
+}
+
+function keyBtn(label, cls, act, ch) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = label; b.className = cls || "";
+  b.dataset.act = act; if (ch !== undefined) b.dataset.ch = ch;
+  b.tabIndex = -1;
+  return b;
+}
+function renderKb() {
+  kb.textContent = "";
+  const rows = PAGES[page], letters = page === "abc";
+  const chars = (str, row) => { for (const c of str) { const ch = letters && shift ? c.toUpperCase() : c; row.appendChild(keyBtn(ch, "", "ch", ch)); } };
+  const r1 = document.createElement("div"); r1.className = "row"; chars(rows[0], r1);
+  const r2 = document.createElement("div"); r2.className = "row" + (letters ? " pad" : ""); chars(rows[1], r2);
+  const r3 = document.createElement("div"); r3.className = "row";
+  if (letters) r3.appendChild(keyBtn(shift === 2 ? "\u21EA" : "\u21E7", "fn" + (shift ? " on" : ""), "shift"));
+  else r3.appendChild(keyBtn(page === "num" ? "#+=" : "123", "fn", "page"));
+  chars(rows[2], r3);
+  r3.appendChild(keyBtn("\u232B", "fn", "bksp"));
+  const r4 = document.createElement("div"); r4.className = "row";
+  r4.appendChild(keyBtn(letters ? "123" : "ABC", "fn", "toggle"));
+  r4.appendChild(keyBtn("space", "sp", "ch", " "));
+  r4.appendChild(keyBtn("return", "go", "enter"));
+  kb.append(r1, r2, r3, r4);
+}
+
+// Our keyboard is for portrait only; on its side the phone uses its own keyboard instead.
+const LANDSCAPE = matchMedia("(orientation: landscape)");
+function effMode() { return kbdMode === "own" && LANDSCAPE.matches ? "native" : kbdMode; }
+function applyKbd() {
+  const app = $("app"), m = effMode();
+  app.dataset.kbd = m;
+  app.dataset.touch = TOUCH ? "1" : "0";
+  input.setAttribute("inputmode", m === "native" ? "text" : "none");
+  $("kbdstate").textContent = KBD_LABEL[m];
+  if (m === "own") renderKb();
+  scrollDown();
+}
+LANDSCAPE.addEventListener && LANDSCAPE.addEventListener("change", () => { if (TOUCH) { input.blur(); applyKbd(); } });
+function setKbdMode(m) {
+  kbdMode = m;
+  try { localStorage.setItem(KBD_KEY, m); } catch (e) { /* not remembered */ }
+  $("app").classList.remove("kbhide");
+  input.blur();                                         // so the new inputmode applies on the next focus
+  applyKbd();
+  if (effMode() === "native") focusInput();                     // open the phone's keyboard right away (this is a tap, so iOS allows it)
+}
+function showKeyboard() {
+  $("app").classList.remove("kbhide");
+  if (effMode() !== "off" || document.activeElement !== input) focusInput();
+  scrollDown();
+}
+function hideKeyboard() {
+  if (effMode() === "own") { $("app").classList.add("kbhide"); scrollDown(); }
+  if (document.activeElement === input) input.blur();
+}
+
+function backspace() {
+  const s = input.selectionStart ?? 0, e = input.selectionEnd ?? s;
+  if (s !== e) input.setRangeText("", s, e, "end");
+  else if (s > 0) input.setRangeText("", s - 1, s, "end");
+  fit();
+}
+let repeatT = null;
+function stopRepeat() { clearTimeout(repeatT); clearInterval(repeatT); repeatT = null; }
+function startRepeat() {
+  stopRepeat();
+  repeatT = setTimeout(() => { repeatT = setInterval(backspace, 55); }, 380);
+}
+function kbPress(b) {
+  const act = b.dataset.act;
+  if (act === "ch") {
+    insertAtCursor(b.dataset.ch);
+    if (shift === 1) { shift = 0; renderKb(); }
+  } else if (act === "bksp") { focusInput(); backspace(); startRepeat(); }
+  else if (act === "enter") submit();
+  else if (act === "shift") {
+    const now = Date.now();
+    shift = shift === 2 ? 0 : (shift === 1 && now - lastShiftTap < 400) ? 2 : shift === 1 ? 0 : 1;
+    lastShiftTap = now; renderKb();
+  } else if (act === "toggle") { page = page === "abc" ? "num" : "abc"; shift = 0; renderKb(); }
+  else if (act === "page") { page = page === "num" ? "sym" : "num"; renderKb(); }
+}
+kb.addEventListener("pointerdown", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  e.preventDefault();                                   // keep focus (and the cursor) in the text box
+  kbPress(b);
+});
+window.addEventListener("pointerup", stopRepeat);
+window.addEventListener("pointercancel", stopRepeat);
+window.addEventListener("blur", stopRepeat);
 
 function insertAtCursor(text) {
   const s = input.selectionStart ?? input.value.length, e = input.selectionEnd ?? s;
@@ -299,7 +437,7 @@ $("keys").addEventListener("pointerdown", (e) => { if (e.target.closest("button"
 $("keys").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   const k = b.dataset.k;
-  if (k === "Kbd") { if (document.activeElement === input) input.blur(); else focusInput(); }
+  if (k === "Kbd") setKbdMode(KBD_MODES[(KBD_MODES.indexOf(kbdMode) + 1) % KBD_MODES.length]);
   else if (k === "Tab") tab();
   else if (k === "^C" || k === "^D") control(k);
   else if (k === "Up") historyStep(-1);
@@ -307,12 +445,11 @@ $("keys").addEventListener("click", (e) => {
   else insertAtCursor(k);
 });
 
-const FINE_POINTER = window.matchMedia && matchMedia("(pointer: fine)").matches;
 screen.addEventListener("click", (e) => {
   if (getSelection().toString()) return;               // let people select text
   if (!alive && api && !busy) { startSession(); return; }
-  if (e.target.closest("#line")) focusInput();         // tap the prompt: type
-  else if (document.activeElement === input) input.blur();   // tap the text: hide the keyboard to read
+  if (e.target.closest("#line")) showKeyboard();       // tap the prompt: type
+  else hideKeyboard();                                  // tap the text: hide the keyboard to read
 });
 
 if (window.visualViewport) {
@@ -320,6 +457,7 @@ if (window.visualViewport) {
   visualViewport.addEventListener("resize", fit); fit();
 }
 window.addEventListener("pagehide", persist);
+applyKbd();
 
 (async function main() {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
