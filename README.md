@@ -10,6 +10,11 @@ A realistic terminal simulator with 50 covert missions and 10 vaults, from your 
 <p align="center"><a href="https://nfvlogic.github.io/Penguin-Protocol/"><b>Play in your browser</b></a></p>
 
 <p align="center">
+  <img src="docs/pip.svg" alt="Pip, the pixel penguin in a detective hat, waving hello and thinking" width="360"><br>
+  <sub>Meet Pip, your partner inside Atlas.</sub>
+</p>
+
+<p align="center">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-f5a031?labelColor=1a1a1a">
   <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-f5a031?labelColor=1a1a1a">
   <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-f5a031?labelColor=1a1a1a">
@@ -201,6 +206,9 @@ commands, like a real manual page.
 ```bash
 cd tests && python -m unittest -v
 ```
+
+`python3 tools/make_demo.py` rebuilds the animated demo and `python3 tools/make_pip.py` the picture of Pip, both
+from the game itself.
 
 The suite runs a full walkthrough of every mission and checks the shell against real Linux behaviour.
 `tests/test_web.py` checks that the web page, its script and the game agree with each other (it needs no browser).

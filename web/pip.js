@@ -18,7 +18,8 @@ const Pip = (() => {
   // How long each mood plays (ms). After that the newest Pip stays alive (blinks, glances around) and older ones hold still.
   const LIFE = { wave: 3500, think: 3500, hint: 3500, win: 3500, fail: 2500, vault: 5000, vaultwin: 5000, sleep: Infinity, idle: Infinity };
   const STILL = { hint: 300 };          // the moment of each mood an older Pip keeps when he stops
-  const REDUCE = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Pip moves a pixel or two in place, so he keeps moving with Reduce Motion on (it still calms the text effects).
+  const REDUCE = false;
 
   function compose(mood, t) {
     const g = Array.from({ length: H }, () => Array(W).fill(null));
