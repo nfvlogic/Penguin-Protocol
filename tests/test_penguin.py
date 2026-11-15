@@ -831,6 +831,26 @@ class ModesAndManuals(Short):
         self.assertTrue(data["plus"])                                      # unlocked for good
         self.assertIn("MISSION COMPLETE WHEN", out.split("Start a new game?")[1])               # back to the normal card
 
+    def test_unquoted_parens_are_a_syntax_error(self):
+        out, _ = run('echo hi (x) > t.txt\nls\necho "a (b)"\n')
+        self.assertIn("syntax error near unexpected token `('", out)
+        self.assertNotIn("t.txt", answer(out, "ls"))              # like bash: nothing ran
+        self.assertTrue(answer(out, 'echo "a (b)"').startswith("a (b)"))
+
+    def test_pip_cheers_once_per_game(self):
+        env = os.environ.get("PENGUIN_FIRSTS")
+        os.environ["PENGUIN_FIRSTS"] = "1"
+        try:
+            out, data = run("ls | head -1\n")
+            self.assertIn("First pipe", out)
+            out, _ = run("ls | head -1\n", state=data)
+            self.assertNotIn("First pipe", out)                      # saved: not again after a restart
+        finally:
+            if env is None:
+                os.environ.pop("PENGUIN_FIRSTS")
+            else:
+                os.environ["PENGUIN_FIRSTS"] = env
+
     def test_mode_cannot_be_switched(self):
         out, _ = run("mode expert\nmode\n")
         self.assertIn("mode: the mode cannot be switched during a game", out)

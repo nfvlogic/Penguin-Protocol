@@ -22,8 +22,11 @@ def wrap_para(text, width):
     """Wrap a paragraph, but keep its own line breaks and indentation (a folder layout must stay a layout)."""
     rows = []
     for line in text.split("\n"):
-        rows += textwrap.wrap(line, width, subsequent_indent=" " * (len(line) - len(line.lstrip())) if line[:1] == " " else "",
-                              replace_whitespace=False, drop_whitespace=False) or [""]
+        wrapped = textwrap.wrap(line, width, subsequent_indent=" " * (len(line) - len(line.lstrip())) if line[:1] == " " else "",
+                                replace_whitespace=False, drop_whitespace=False) or [""]
+        if line[:1] != " ":     # plain text: a wrapped line never starts (or ends) with the space it broke at
+            wrapped = [wrapped[0].rstrip()] + [r.strip() for r in wrapped[1:]]
+        rows += wrapped
     return rows
 
 class TicketCommands:
@@ -141,7 +144,7 @@ class TicketCommands:
     def save(self, session_open=True):
         state = {"seed": self.seed, "expert": self.expert, "plus": self.plus_unlocked, "ticket": self.ticket()["ticket"], "best_ticket": LEVELS[self.best - 1]["ticket"],
                  "level": self.level, "best": self.best, "finished": self.finished, "part": self.part,
-                 "tips": self.tips, "open": session_open}
+                 "tips": self.tips, "open": session_open, "firsts": sorted(self.firsts)}
         try:
             with open(SAVE_FILE, "w", encoding="utf-8") as f:
                 json.dump(state, f)
@@ -163,6 +166,7 @@ class TicketCommands:
             self.level = min(max(level, 1), self.best)
             self.finished = bool(data.get("finished", False))
             self.tips = bool(data.get("tips", True))
+            self.firsts = {k for k in data.get("firsts", []) if isinstance(k, str)}   # Pip cheers each big idea once
             self.expert = bool(data.get("expert", False))
             self.plus_unlocked = bool(data.get("plus", False)) or self.finished
             parts = self.ticket()["parts"] or []
@@ -327,6 +331,9 @@ class TicketCommands:
         """One line telling the player how this ticket gets closed (new players do not know about submit)."""
         lv = self.ticket()
         if lv["parts"]:
+            kinds = {callable(g) for _, g in lv["parts"]}
+            if kinds == {True, False}:      # some steps are questions, some finish on their own
+                return "Questions: type  submit ANSWER.  Steps marked (completes by itself) finish on their own."
             goal = lv["parts"][min(self.part, len(lv["parts"]) - 1)][1]
             by_answer = not callable(goal)
         else:
@@ -530,7 +537,7 @@ class TicketCommands:
             return "Nothing changed."
         self.seed = random.randrange(1, 10 ** 9)
         self.levels = levels_for(self.seed)
-        self.best, self.finished = 1, False
+        self.best, self.finished, self.firsts = 1, False, set()   # a new game: Pip cheers again
         self.expert, self.tips = plus, not plus
         self.start_level(1)
         self.save()

@@ -82,7 +82,7 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
         if msg:  # `false` fails silently, like real Linux
             print(c("31", msg), flush=True)
         if tip and self.tips:
-            print(c("90", "  tip: " + tip), flush=True)
+            print(c("90", self.tip_lines(tip)), flush=True)
 
     def warn(self, msg, tip=None):
         """A non-fatal error: print it (or send it to 2>), keep the command running."""
@@ -95,7 +95,13 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
     def tip(self, text):
         """A learning tip that is not part of the command output."""
         if self.tips and not self.pipe_out and not self.capture_stack:
-            print(c("90", "  tip: " + text), flush=True)
+            print(c("90", self.tip_lines(text)), flush=True)
+
+    def tip_lines(self, text):
+        """'  tip: ...' wrapped between words to the screen width (a phone would break it mid-word)."""
+        import textwrap
+        return "\n".join(textwrap.wrap("tip: " + text, max(30, self.width() - 3), initial_indent="  ",
+                                        subsequent_indent="       ", break_on_hyphens=False, break_long_words=False))
 
     def short_cwd(self):
         if self.cwd == HOME or self.cwd.startswith(HOME + "/"):

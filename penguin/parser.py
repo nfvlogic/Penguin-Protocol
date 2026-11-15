@@ -234,6 +234,9 @@ def tokenize(line, env, status, shell=None):
                 flush()
                 tokens.append(("op", op))
                 i += len(op)
+            elif ch in "()":    # bash reads an unquoted ( or ) as syntax, not text: echo hi (x) fails there
+                raise ShellError(f"bash: syntax error near unexpected token `{ch}'", 2,
+                                 tip='put text with ( or ) in quotes, e.g. echo "fix (ATL-1)"')
             else:
                 if ch in "*?[":
                     glob = True
