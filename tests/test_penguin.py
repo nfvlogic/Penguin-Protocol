@@ -123,7 +123,7 @@ submit 10.20.30.66
 awk '$1 == "10.20.30.66" {{s += $5}} END {{print s}}' traffic.log
 submit {TRAFFIC_SUM}
 cat -A roster.csv
-tr -d '\r' < roster.csv > clean.csv
+tr -d '\\r' < roster.csv > clean.csv
 grep -c ',active$' clean.csv
 sed -i 's/lisbon/oslo/g' clean.csv
 submit 5
