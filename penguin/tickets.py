@@ -104,10 +104,15 @@ LEVELS = [
     task("Onboarding", "ATL-104", "Scaffold the Launch date feature", "Normal", "Product owner",
          ["New feature: requestors must enter a desired launch date. Create the empty feature "
           "module so the team can start coding.",
-          "Inside ~/atlas/app/features create: a folder launch_date with an empty __init__.py, "
-          "an empty routes.py, a subfolder templates, and README.md containing exactly: "
-          "Launch date field",
-          "Note: plain mkdir only creates one level, and fails if the parent does not exist."],
+          "When you are done, the folder ~/atlas/app/features must look like this:\n"
+          "    features/\n"
+          "        launch_date/\n"
+          "            __init__.py     (empty file)\n"
+          "            routes.py       (empty file)\n"
+          "            templates/      (empty folder)\n"
+          "            README.md       (one line of text: Launch date field)",
+          "Note: some of these folders do not exist yet, and a folder cannot be created inside one that is missing, "
+          "unless you ask for the parents too."],
          "The structure exists. Closes by itself (type check).",
          [CD, ("mkdir -p A/B", "make a folder and any missing parent folders", "mkdir -p reports/2026/q4"),
           ("touch FILE...", "create one or more empty files", "touch a.txt b.txt"),
