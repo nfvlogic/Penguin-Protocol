@@ -8,10 +8,12 @@ body { font:14px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mon
 #app { position:fixed; inset:0; display:flex; flex-direction:column;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 #screen { flex:1; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; touch-action:pan-y; padding:6px 8px; outline:none; -webkit-overflow-scrolling:touch; }
-#out, #prompt { white-space:pre-wrap; word-break:break-all; }
+#out, #prompt { white-space:pre-wrap; word-break:break-all; overflow-wrap:anywhere; max-width:100%; }
 #out { display:block; }
 #line { display:flex; align-items:flex-start; position:relative; }
-#prompt { flex:0 1 auto; max-width:75%; min-width:0; }
+#prompt { flex:0 1 auto; max-width:75%; min-width:0; overflow-wrap:anywhere; }
+#line.multi { flex-wrap:wrap; }
+#line.multi #input { flex:1 1 100%; }
 #input { flex:1; min-width:4ch; resize:none; overflow:hidden; line-height:inherit; height:1.35em; white-space:pre-wrap; word-break:break-all; background:transparent; border:0; outline:0; color:#f0f6fc; font:inherit;
   padding:0; margin:0; caret-color:transparent; border-radius:0; -webkit-appearance:none; appearance:none; font-size:16px; }   /* 16px stops iOS from zooming the page when the keyboard opens */
 #input:disabled { opacity:.5; }

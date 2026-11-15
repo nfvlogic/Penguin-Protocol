@@ -8,7 +8,19 @@ const MAX_CHILDREN = 4000;
 
 const $ = (id) => document.getElementById(id);
 const out = $("out"), promptEl = $("prompt"), input = $("input"), screen = $("screen");
-function fit() { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; schedCur(); }
+// Grows the text box with its text. A long command moves under the prompt (full width) and the screen follows it,
+// so what is being typed never ends up below the visible area.
+function fit() {
+  input.style.height = "auto";
+  const one = parseFloat(getComputedStyle(input).lineHeight) || 19;
+  const lineEl_ = $("line");
+  lineEl_.classList.remove("multi");
+  input.style.height = "auto";
+  if (input.scrollHeight > one * 1.5) lineEl_.classList.add("multi");
+  input.style.height = "auto"; input.style.height = input.scrollHeight + "px";
+  schedCur();
+  if (document.activeElement === input) scrollDown();
+}
 
 // ---- block cursor: the text box is a <textarea>, so the cursor is drawn by hand. A hidden copy of the text up to the
 // cursor tells us where it is, even when a long command wraps onto several lines.
@@ -412,24 +424,40 @@ function hideKeyboard() {
   if (document.activeElement === input) input.blur();
 }
 
+// After the phone has been away (app switched, screen locked) the text box can have lost focus and a stale caret
+// (often 0, so delete does nothing). Take focus again and put the caret at the end in that case.
+function ensureFocus() {
+  const had = document.activeElement === input;
+  focusInput();
+  if (!had) { const n = input.value.length; try { input.setSelectionRange(n, n); } catch (e) { /* ignore */ } }
+}
 function backspace() {
   const s = input.selectionStart ?? 0, e = input.selectionEnd ?? s;
   if (s !== e) input.setRangeText("", s, e, "end");
   else if (s > 0) input.setRangeText("", s - 1, s, "end");
   fit();
 }
-let repeatT = null;
-function stopRepeat() { clearTimeout(repeatT); clearInterval(repeatT); repeatT = null; }
+// Held delete repeats only while a finger is really down. Some phones drop the "finger up" event after the app
+// was in the background, which used to leave delete running (or stuck); so every release signal stops it, ticks
+// double-check, and it never runs longer than a few seconds.
+let repeatT = null, fingerDown = false, repeatStart = 0;
+function stopRepeat() { clearTimeout(repeatT); clearInterval(repeatT); repeatT = null; fingerDown = false; }
 function startRepeat() {
   stopRepeat();
-  repeatT = setTimeout(() => { repeatT = setInterval(backspace, 55); }, 380);
+  fingerDown = true; repeatStart = Date.now();
+  repeatT = setTimeout(() => {
+    repeatT = setInterval(() => {
+      if (!fingerDown || document.hidden || Date.now() - repeatStart > 6000 || !input.value) { stopRepeat(); return; }
+      backspace();
+    }, 55);
+  }, 380);
 }
 function kbPress(b) {
   const act = b.dataset.act;
   if (act === "ch") {
     insertAtCursor(b.dataset.ch);
     if (shift === 1) { shift = 0; renderKb(); }
-  } else if (act === "bksp") { focusInput(); backspace(); startRepeat(); }
+  } else if (act === "bksp") { ensureFocus(); backspace(); startRepeat(); }
   else if (act === "enter") submit();
   else if (act === "shift") {
     const now = Date.now();
@@ -441,16 +469,17 @@ function kbPress(b) {
 kb.addEventListener("pointerdown", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   e.preventDefault();                                   // keep focus (and the cursor) in the text box
+  stopRepeat();                                         // a release that never arrived must not leak into this press
   kbPress(b);
 });
-window.addEventListener("pointerup", stopRepeat);
-window.addEventListener("pointercancel", stopRepeat);
-window.addEventListener("blur", stopRepeat);
+["pointerup", "pointercancel", "touchend", "touchcancel", "mouseup", "blur", "contextmenu", "pagehide"].forEach((ev) => window.addEventListener(ev, stopRepeat));
+kb.addEventListener("pointerleave", stopRepeat);
+kb.addEventListener("lostpointercapture", stopRepeat);
 
 function insertAtCursor(text) {
+  ensureFocus();
   const s = input.selectionStart ?? input.value.length, e = input.selectionEnd ?? s;
   input.setRangeText(text, s, e, "end"); fit();
-  focusInput();
 }
 
 function historyStep(dir) {
@@ -532,10 +561,22 @@ screen.addEventListener("click", (e) => {
   else hideKeyboard();                                  // tap the text: hide the keyboard to read
 });
 
-if (window.visualViewport) {
-  const fit = () => { $("app").style.height = visualViewport.height + "px"; scrollDown(); };
-  visualViewport.addEventListener("resize", fit); fit();
+function fitViewport() {
+  if (window.visualViewport) $("app").style.height = visualViewport.height + "px";
+  scrollDown(); schedCur();
 }
+if (window.visualViewport) { visualViewport.addEventListener("resize", fitViewport); fitViewport(); }
+// Coming back after a while (or a long time away): drop any half-finished key press and re-sync the layout.
+function resume() {
+  stopRepeat();
+  fitViewport();
+  applyKbd();
+  fit();
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) stopRepeat(); else resume(); });
+window.addEventListener("pageshow", resume);
+window.addEventListener("focus", resume);
+window.addEventListener("orientationchange", () => setTimeout(resume, 150));
 window.addEventListener("pagehide", persist);
 applyKbd();
 
