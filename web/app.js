@@ -16,7 +16,8 @@ function fit() {
   const lineEl_ = $("line");
   lineEl_.classList.remove("multi");
   input.style.height = "auto";
-  if (input.scrollHeight > one * 1.5) lineEl_.classList.add("multi");
+  // a prompt that wraps (deep folder) also puts the command on its own line, so the cursor starts after the $ line
+  if (input.scrollHeight > one * 1.5 || promptEl.offsetHeight > one * 1.5) lineEl_.classList.add("multi");
   input.style.height = "auto"; input.style.height = input.scrollHeight + "px";
   schedCur();
   if (document.activeElement === input) scrollDown();
@@ -102,6 +103,7 @@ function writeErr(text) { const sp = document.createElement("span"); sp.classNam
 function setPrompt(text) {
   promptEl.textContent = "";
   new Ansi().render(text, promptEl);
+  fit();                                               // a longer or shorter prompt can change the layout
 }
 function scrollDown() { screen.scrollTop = screen.scrollHeight; }
 
@@ -545,7 +547,7 @@ async function startSession() {
 input.addEventListener("input", fit);
 ["focus", "blur", "keyup", "click", "select"].forEach((ev) => input.addEventListener(ev, schedCur));
 document.addEventListener("selectionchange", () => { if (document.activeElement === input) schedCur(); });
-window.addEventListener("resize", schedCur);
+window.addEventListener("resize", fit);
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); submit(); }
   else if (e.key === "ArrowUp") { e.preventDefault(); historyStep(-1); }

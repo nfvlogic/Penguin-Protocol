@@ -231,8 +231,18 @@ class NetworkCommands:
 
     cmd_apt_get = cmd_apt
 
-    def cmd_nano(self, args, stdin):
-        raise ShellError("nano: text editors are not available in this practice shell", 1,
+    def _no_editor(self, name):
+        raise ShellError(f"{name}: text editors are not available in this practice shell", 1,
                          tip='write files with echo "text" > file and add lines with >>')
 
-    cmd_vim = cmd_vi = cmd_code = cmd_nano
+    def cmd_nano(self, args, stdin):
+        self._no_editor("nano")
+
+    def cmd_vim(self, args, stdin):
+        self._no_editor("vim")
+
+    def cmd_vi(self, args, stdin):
+        self._no_editor("vi")
+
+    def cmd_code(self, args, stdin):
+        self._no_editor("code")
