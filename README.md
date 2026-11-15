@@ -74,17 +74,17 @@ a **vault**: a boss mission that combines everything you just learned.
  Handler: Control   Phase: Infiltration   File 1 of 60
  Password: PP-01-WYYR-3VU5
 ──────────────────────────────────────────────────────────────────────────
- BRIEFING                          │ TOOLKIT (examples: other files)
+ BRIEFING                          │ TOOLKIT (examples use other files)
  Control wants proof that your     │ ls [FOLDER]
- cover holds: run Atlas on your    │   list the files in a folder (e.g. ls
- own machine.                      │   reports)
+ cover holds: run Atlas on your    │   list the files in a folder
+ own machine.                      │   e.g. ls reports
                                    │ cat FILE
- Start with welcome.txt in your    │   show what is inside a file (e.g.
- home folder: it points to the     │   cat notes.md)
+ Start with welcome.txt in your    │   show what is inside a file
+ home folder: it points to the     │   e.g. cat notes.md
  project docs. Find the port the   │ cd FOLDER
  app uses locally.                 │   go into a folder; cd .. goes up, cd
-                                   │   ~ goes home (e.g. cd projects)
- You start in ~ (your home folder, │
+                                   │   ~ goes home
+ You start in ~ (your home folder, │   e.g. cd projects
   /home/analyst). Paths in this    │
  briefing start there. In it:      │
  atlas/  notes.txt  welcome.txt.   │
@@ -97,6 +97,8 @@ a **vault**: a boss mission that combines everything you just learned.
 ──────────────────────────────────────────────────────────────────────────
  Always available: ls cd pwd cat less tree man   Mission: task  check
    hint  submit  password
+
+Pip: First time? Type  ls  to see what is here.
 
 Pip: First time? Type  ls  to see what is here.
 

@@ -132,8 +132,8 @@ LEVELS = [
           "atlas/migrations/draft.py to 0040_add_trademark_bu.py. Linux has no rename command: moving "
           "a file to a new name is renaming it."],
          "Both requirements are met. Closes by itself (type check).",
-         [LS, ("cp FILE... FOLDER", "copy one or more files into a folder", "cp a.txt b.txt archive/"),
-          ("mv OLD NEW", "rename (or move) a file", "mv old.txt new.txt"), CHECK],
+         [LS, ("cp FILE... FOLDER/", "copy one or more files into a folder (end the folder with /)", "cp docs/a.txt docs/b.txt archive/"),
+          ("mv OLD NEW", "rename (or move) a file; give the path of both", "mv docs/old.txt docs/new.txt"), CHECK],
          {"atlas/config/dev.py": "DEBUG = True", "atlas/config/tst.py": "DEBUG = False",
           "atlas/config/prd.py": "DEBUG = False",
           "atlas/migrations/0039_add_scope.py": "add_column('request', 'scope')",

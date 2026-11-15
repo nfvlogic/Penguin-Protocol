@@ -277,7 +277,6 @@ class TicketCommands:
             body += [c("1;33", " MISSION COMPLETE WHEN")] + [" " + t for t in textwrap.wrap(lv["done"], w - 2)]
             return lines + body + [rule]
 
-        compact = not two        # one column (a phone): shorter toolkit, no examples
 
         def build(lw, rw):
             left = [c("1;33", " BRIEFING")]
@@ -298,12 +297,15 @@ class TicketCommands:
             hint = self.finish_hint()
             if hint:
                 left += [""] + [c("1;36", " " + s) for s in textwrap.wrap(hint, lw - 1)]
-            right = [c("1;33", "TOOLKIT" if compact else "TOOLKIT (examples: other files)")]
+            right = [c("1;33", "TOOLKIT (examples use other files)")]
             for syntax, expl, example in lv["cmds"]:
                 if syntax in ("submit ANSWER", "check"):  # always available: listed in the footer
                     continue
                 right += [c("32", s) for s in textwrap.wrap(syntax, rw)]
-                right += [c("90", "  " + s) for s in textwrap.wrap(expl if compact else f"{expl} (e.g. {example})", rw - 2)]
+                right += [c("90", "  " + s) for s in textwrap.wrap(expl, rw - 2)]
+                if example:   # a sample of how it is typed (never the answer): on a phone too
+                    right += [c("36", "  e.g. " + s if i == 0 else "       " + s)
+                              for i, s in enumerate(textwrap.wrap(example, rw - 7, break_on_hyphens=False))]
             return left, right
         if two:  # pick the column split that makes the card shortest
             best = None
