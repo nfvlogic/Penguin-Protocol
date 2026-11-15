@@ -253,6 +253,87 @@ WRONG = {
 }
 
 
+# What has to be done, short and without telling HOW (the commands are on the card, `hint` helps when stuck).
+# Replaces the paragraphs after the story. Keep literal values (hosts, ports, file names): variants.py swaps them by seed.
+TASK = {
+    "ATL-105": ["When you are done: ~/backup holds a copy of each of the 3 files in ~/atlas/config (the originals stay), "
+                "and ~/atlas/migrations/draft.py has the new name 0040_add_trademark_bu.py (same folder, same content)."],
+    "ATL-106": ["Remove from ~/atlas every compiled file ending in .pyc (only those directly in that folder) and the whole "
+                "folder atlas/__pycache__. Nothing else may disappear."],
+    "ATL-107": ["Create atlas/.gitignore with exactly these 3 lines, in this order: __pycache__/  then  *.pyc  then  .env",
+                "Add this as the new LAST line of atlas/CHANGELOG.md; the lines already there must stay: - Added launch date field (ATL-104)"],
+    "ATL-110": ["Find the real endpoint that fails with HTTP 500 when a request is created. Fake crashes sent by monitoring are "
+                "marked as tests and do not count."],
+    "ATL-112": ["XFAILED means expected to fail (a known issue) and does not count. Count only the tests that really FAILED."],
+    "ATL-113": ["Count the .py files in atlas/app that mention SECRET_KEY. Templates, docs and settings files do not count."],
+    "ATL-114": ["Find the revision number that is used by two migrations."],
+    "ATL-115": ["Line format: <ip> <method> <path> <status> <time>. Find the endpoint with the most HTTP 500 answers. "
+                "The busiest endpoint overall is the health check: that is not what we are after."],
+    "ATL-116": ["Run the pre-deploy script deploy.sh and keep its output in a file called deploy_check.log. "
+                "Check what the script does before you run it."],
+    "ATL-117": ["The file has Windows line endings: an invisible extra character at the end of every line, which is why "
+                "searching for open gives 0. Make clean.csv: the same lines without that character. Then give the number "
+                "of tickets whose status (last column) is open."],
+    "ATL-118": ["TST and PRD should differ in only 3 settings: the database host, the database name and DEBUG. Find out "
+                "which other setting differs and what value PRD has for it."],
+    "ATL-119": ["In atlas/config/tst.py the old server atlas-db-02 appears in TWO lines (host and URL). Both must point to the "
+                "new server atlas-db-new, and nothing else may change. Keep the original as tst.py.bak in the same folder. "
+                "Do not touch prd.py."],
+    "ATL-120": ["traffic.log has today's API requests: <ip> <method> <path> <status> <time>. A stranger is probing for pages "
+                "that do not exist (status 404). Careful: some paths contain 404 too; only the status counts."],
+    "ATL-121": ["costs.csv has one line per service and environment: service,environment,eur (the first line is a header)."],
+    "ATL-122": ["Delete every file ending in .tmp anywhere below ~/build. All other files must stay, even ones with tmp in "
+                "their name."],
+    "ATL-123": ["Server names and their IPs are in /etc/hosts. Find out which replica answers and submit its IP address."],
+    "ATL-124": ["alerts.log has today's alerts; most are resolved. One host is still down and its alert only shows an IP. "
+                "Submit the name of that server."],
+    "ATL-125": ["You do not log in to atlas-prd; as the user analyst you can only send it one command at a time. "
+                "On Linux, logs live in /var."],
+    "ATL-126": ["Get an API access token from the token endpoint: http://atlas-api/token. The server tells you what it needs: "
+                "read its replies."],
+    "ATL-127": ["The projects endpoint is protected. Read what the server asks for and find the stage of project NPI-042."],
+    "ATL-128": ["Save the list from http://atlas-api/api/users (one JSON user per line) as users.json, then count the real "
+                "admins. A pending 'admin-request' is not an admin yet."],
+    "ATL-129": ["Today is 2026-11-12. Count the ERROR lines in today's log of atlas-db-02. Logs are in ~/incident, one folder "
+                "per day; other days do not count."],
+    "ATL-130": ["Build the dev environment: a virtual environment in ~/atlas/.venv, the requirements (listed in "
+                "~/atlas/requirements.txt) installed into it, and Atlas running on the port from the README."],
+    "ATL-131": ["Atlas refuses to start because its environment variables are not set. The venv in ~/atlas/.venv is ready. "
+                "Set what is missing (the values for local development are in ~/atlas/.env.example) and get Atlas running."],
+    "ATL-132": ["Find out the state of the repository in ~/atlas and answer the three steps."],
+    "ATL-133": ["Never commit straight to main. In ~/atlas create a branch called feature/launch-date and add the file "
+                "migrations/0042_add_launch_date.py containing one line: add_column('request', 'launch_date')",
+                "Commit it with a message that starts with the ticket number ATL-146. Made a mistake on main? Type reset to "
+                "start this ticket again."],
+    "ATL-134": ["Review the pending changes in ~/atlas before the pull request. An accidental change slipped into a config "
+                "file, and a package is waiting to be added to requirements.txt."],
+    "ATL-135": ["Find the process that uses the most CPU and make it stop for good."],
+    "ATL-136": ["Fix the permissions of three files in ~/atlas: .env: the owner can read and write, nobody else can do "
+                "anything. scripts/deploy.sh: the owner can do everything, the group can read and run it, others nothing. "
+                "config/prd.py: everybody can read it, only the owner can write."],
+    "ATL-137": ["atlas-api is a service of your own user and it is in a failed state. Find out why, fix the cause and get it "
+                "running (active) again."],
+    "ATL-138": ["Back up the folder atlas/config into a compressed archive ~/backups/config-backup.tar.gz. Then answer how "
+                "many .py files it holds, and restore only atlas/config/tst.py into ~/restore (the folder exists)."],
+    "ATL-139": ["Atlas must run on port 5050 (the front end expects it) but the port is taken. Find who holds it, remove the "
+                "blocker and start Atlas on that port. The venv in ~/atlas/.venv is ready and configured."],
+    "ATL-140": ["Under ~/data there are four folders. Find which one really uses the most disk space (not necessarily the one "
+                "with most files) and how much it uses, in KB."],
+    "ATL-142": ["Write a script check_hosts.sh that prints, for every name in hosts.txt, NAME up or NAME down (one line per "
+                "server, same order). Up means the server answers a ping. Run it and save its output in report.txt."],
+    "ATL-143": ["Every .log file in ~/logs bigger than 1 KiB must end up in one compressed archive, ~/logs-archive.tar.gz, and "
+                "no longer be in ~/logs. Smaller logs stay. The archive holds only the big logs."],
+    "ATL-144": ["The folder current is a symbolic link to one release in ~/releases. Find out which release it serves now, "
+                "then make it serve v1.9.0."],
+    "ATL-145": ["Read nightly.sh, then run it twice. First time: everything it prints, normal messages and errors, in order, "
+                "goes into nightly.log. Second time: only the error messages go into nightly.err."],
+    "ATL-146": ["The column does not exist yet. Find the template of the form and the next free migration number, then "
+                "create the migration."],
+    "ATL-149": ["sprint.csv has every ticket of the sprint: ticket,component,points. Answer the questions and create "
+                "workflow.csv with only the lines of the workflow component ('workflow-ui' is a different component)."],
+}
+
+
 def apply(levels):
     """Add the story to every ticket (called once, from tickets.py)."""
     from .vaults import OPS as VOPS, PIP as VPIP
@@ -263,7 +344,7 @@ def apply(levels):
         lv["op"] = op
         lv["pip"] = list(PIP[lv["ticket"]])
         lv["wrong"] = WRONG.get(lv["ticket"], "")
-        lv["brief"] = [first] + list(lv["brief"][1:])
+        lv["brief"] = [first] + list(TASK.get(lv["ticket"]) or lv["brief"][1:])
         lv["phase"] = PHASE.get(lv["module"], lv["module"])
         lv["handler"] = HANDLER.get(lv["from"], lv["from"])
         lv["threat"] = THREAT.get(lv["prio"], lv["prio"])
