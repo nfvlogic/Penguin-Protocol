@@ -89,9 +89,9 @@ LEVELS = [
           "Flask loads settings from hidden files (names that start with a dot) in the project "
           "folder. Find the file that holds the database settings and the correct database "
           "name. The hidden file in your home folder is the OLD one.",
-          "How: go into the project folder ~/atlas and list ALL its files with ls -a (a plain ls hides "
-          "names that start with a dot). One hidden file points to the other one that holds the settings. "
-          "Open it with cat and read the line DB_NAME=...  The answer is only the value after the = sign."],
+          "Where to look: the project folder is ~/atlas. Some of its files are hidden, so a plain listing will "
+          "not show them all. One hidden file points to the other one that holds the settings. In that file "
+          "find the line DB_NAME=... The answer is only the value after the = sign."],
          "You submit the correct DB_NAME: only the value after the = sign (from the project's settings file, not the old one in your home folder).",
          [("ls -a [FOLDER]", "list ALL files, hidden ones (.name) too", "ls -a reports"), CD, CAT,
           ("cd ~", "go back to your home folder", "cd ~"), SUBMIT],
@@ -485,8 +485,8 @@ LEVELS = [
     # ------------------------------------------------------------ GIT & PYTHON
     task("Git & Python", "ATL-130", "Set up the dev environment", "High", "Tech lead",
          ["Your laptop was reinstalled. Get Atlas running again the standard way: a virtual "
-          "environment in a folder called .venv inside ~/atlas, the requirements installed "
-          "into it, and the app started on the port from the README.",
+          "environment in a folder called .venv inside ~/atlas, the requirements (listed in "
+          "~/atlas/requirements.txt) installed into it, and the app started on the port from the README.",
           "On Ubuntu the command is python3 (python only exists inside a venv). pip refuses to "
           "install system-wide. Folders that start with a dot are hidden from plain ls."],
          "All 4 requirements are met. Closes by itself (type check).",

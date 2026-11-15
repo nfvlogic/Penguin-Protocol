@@ -91,10 +91,13 @@ VAULTS = [
     vault(1, "Archive",
           ["The archive under Atlas holds the floor plans. The key card is hidden in ~/vault, and the plans have to "
            "leave with you, in your own folder and under a new name.",
-           "Step by step: use tree to see what is in ~/vault; hidden files start with a dot and only show with ls -a. "
-           "Submit the code written on the key card (the real one is hidden; the visible card is expired). "
-           "Then make the folder ~/loot/plans, copy the file plans.txt (it is somewhere in ~/vault) into it, and "
-           "rename that copy to floor-2.txt. Use the steps below, one by one."],
+           "Step 1: somewhere in ~/vault lie two key cards; the real one is hidden (its name starts with a dot) and the "
+           "visible one is expired. Submit the code written on the real card (the text after KEY CARD:).",
+           "Steps 2 and 3: when you are done, your home folder must contain this (the file is a copy of plans.txt, "
+           "which lies somewhere in ~/vault; the original stays where it is):",
+           "    ~/loot/",
+           "        plans/",
+           "            floor-2.txt"],
           "All 3 steps are done.",
           [("ls -a [FOLDER]", "list ALL files, hidden ones (.name) too", "ls -a reports"),
            ("tree FOLDER", "show all folders and files below a folder", "tree projects"),
