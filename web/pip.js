@@ -16,7 +16,7 @@ const Pip = (() => {
     ".KWWWK.",
     ".O...O."];  // feet
   // How long each mood plays (ms). After that the newest Pip stays alive (blinks, glances around) and older ones hold still.
-  const LIFE = { wave: 3500, think: 3500, hint: 3500, win: 3500, fail: 2500, vault: 5000, vaultwin: 5000, sleep: Infinity, idle: Infinity };
+  const LIFE = { wave: 6000, think: 3500, hint: 3500, win: 3500, fail: 2500, vault: 5000, vaultwin: 5000, sleep: Infinity, idle: Infinity };
   const STILL = { hint: 300 };          // the moment of each mood an older Pip keeps when he stops
   // Pip moves a pixel or two in place, so he keeps moving with Reduce Motion on (it still calms the text effects).
   const REDUCE = false;
@@ -28,7 +28,14 @@ const Pip = (() => {
     let ox = 1, oy = 2, head = 0, look = 0, blink = false, hat = 0;
     const extra = [];
     switch (mood) {
-      case "idle": { const c = t % 7000; blink = c % 2600 > 2420; look = c > 3500 && c < 4400 ? -1 : c > 4400 && c < 5300 ? 1 : 0; break; }
+      case "idle": {                  // a 14-second loop so he always feels alive: blinks, glances, waves, tips his hat
+        const c = t % 14000;
+        blink = c % 3100 > 2920;
+        look = c > 2000 && c < 2900 ? -1 : c > 2900 && c < 3800 ? 1 : 0;
+        if (c > 5000 && c < 6800) { const up = step(220) % 2; extra.push(() => { put(ox + 7, oy + 4 - up, "K"); if (up) put(ox + 8, oy + 3, "K"); }); }   // a little wave
+        if (c > 8500 && c < 9200) hat = 1;                                                                                // tips his hat
+        if (c > 11000 && c < 12400) { look = [0, 1, 0, -1][step(350) % 4]; }                                              // looks around
+        break; }
       case "think": look = [0, 1, 1, 0, -1, -1][step(300) % 6]; head = step(1800) % 2 && step(300) % 6 > 2 ? 1 : 0; break;
       case "win": { const k = step(110) % 10; oy -= [0, 1, 2, 2, 1, 0, 0, 0, 0, 0][k]; hat = k === 5 || k === 6 ? 1 : 0; break; }
       case "fail": head = t % 1300 < 800 ? [0, -1, 0, 1][step(100) % 4] : 0; look = head ? 0 : 0; break;
