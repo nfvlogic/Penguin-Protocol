@@ -81,13 +81,18 @@ Ansi.prototype.render = function (text, parent, onClear) {
     if (m[3] !== undefined) {
       const [kind, mood, row] = m[3].split(";");
       if (kind === "pip" && mood === "end") pip = null;
-      else if (kind === "pip" && typeof Pip === "object") { pip = document.createElement("span"); parent.appendChild(pip); Pip.row(pip, mood, +row || 0); }
+      else if (kind === "pip" && typeof Pip === "object") {
+        pip = document.createElement("span"); parent.appendChild(pip);
+        if (skipWinPip && /win$/.test(mood)) pip.className = "pipr";      // the answer bar already has Pip: keep the space, not a second one
+        else Pip.row(pip, mood, +row || 0);
+      }
     } else if (m[2] === "m") this.sgr(m[1]);
     else if (m[2] === "J" && (m[1] === "2" || m[1] === "3")) { onClear && onClear(); }
   }
   put(text.slice(last));
 };
 const outAnsi = new Ansi();
+let skipWinPip = false;
 function clearScreen() { out.textContent = ""; }
 function write(text) {
   outAnsi.render(text, out, clearScreen);
@@ -280,6 +285,7 @@ async function answerLog(isSubmit, text) {
     if (final) l.appendChild(document.createTextNode("  you were never here."));
   }
   animating = false;
+  return !!m;
 }
 
 // ------------------------------------------------------------------ the terminal
@@ -333,8 +339,9 @@ async function submit() {
   try { next = api.feed(line, cols()); } finally { parts = cap; cap = null; }
   const text = parts.map((p) => p.t).join("");
   const passed = /Objective secured: Operation/.test(text.replace(/\x1b\][^\x07]*\x07/g, " ").replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").replace(/\s+/g, " "));
-  await answerLog(/^\s*submit\b/.test(line), text);
-  await replay(parts, passed);                         // a new mission cascades in; other output is instant
+  const barShown = await answerLog(/^\s*submit\b/.test(line), text);
+  skipWinPip = !!barShown;
+  try { await replay(parts, passed); } finally { skipWinPip = false; }                         // a new mission cascades in; other output is instant
   showPrompt(next);
   after(next);
 }
