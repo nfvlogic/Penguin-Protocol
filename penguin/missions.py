@@ -147,7 +147,7 @@ OPS = {
 }
 
 # ticket -> what Pip tells you on the card: (the secret mission in one line, what to do in one line).
-# Short on purpose; the full briefing is one command away (task full). Never put an answer here.
+# Short on purpose: the briefing card under it has everything. Never put an answer here.
 PIP = {
     "ATL-101": ("Your badge got you in. Prove your cover holds.", "Find the port Atlas uses on your machine."),
     "ATL-102": ("The test floor moves to a new database soon.", "Find which DB_HOST the TST environment uses."),
@@ -208,7 +208,7 @@ TODO = {
     "ATL-101": "Start with the welcome file in your home folder: it points to the project documentation. In it, find the port the app uses when you run it locally, and submit that number.",
     "ATL-102": "Open the project and look at the config of each environment. Find the DB_HOST the TST environment uses today (not the old COMPASS one) and submit it.",
     "ATL-103": "Go into the project folder and look at ALL its files, including the hidden ones. Find the settings file that holds the right DB_NAME and submit only that name.",
-    "ATL-104": "Create the empty module for the launch date feature inside the project: the folders and files shown in the briefing, with the one line of text in README.md. The mission closes by itself when it all exists.",
+    "ATL-104": "Go to ~/atlas/app/features and create the empty launch_date module there: the folders and files the tree on the card shows, with the one line of text in README.md. The mission closes by itself when it all exists.",
     "ATL-105": "Put a copy of the 3 config files into the backup folder, and give the draft migration its proper new name (same folder, same content). The mission closes by itself when both are done.",
     "ATL-106": "Remove the compiled .pyc files and the __pycache__ folder from the project, and nothing else. The mission closes by itself when they are gone.",
     "ATL-107": "Create a .gitignore file in the project with exactly the 3 lines from the briefing, in that order. Then add the new line at the END of CHANGELOG.md without erasing what is there.",
@@ -246,7 +246,7 @@ TODO = {
     "ATL-139": "The port Atlas needs is taken. Find which process holds it and submit its PID, then stop that process and start Atlas on the same port.",
     "ATL-140": "Under the data folder there are four folders. Find which one uses the most disk space and how many KB it uses. The one with the most files is not necessarily the biggest.",
     "ATL-141": "Look at /etc/passwd: the last field of every line is the login shell. Count the accounts with a real shell like bash, and find the user id of the mysql account.",
-    "ATL-142": "Write a script check_hosts.sh that prints one line per name in hosts.txt: the name and up or down. Make it runnable, run it, and save its output in report.txt.",
+    "ATL-142": "Write a script check_hosts.sh in your home folder (next to hosts.txt) that prints one line per name in hosts.txt: the name and up or down. Make it runnable, run it, and save its output in report.txt.",
     "ATL-143": "Put every log in the logs folder that is bigger than 1 KiB into one compressed archive, then delete those logs. Smaller logs stay. The mission closes by itself.",
     "ATL-144": "The folder current is a link to one release. Find out which release it points to now, then make it point to the release the briefing names.",
     "ATL-145": "Read the nightly script, then run it twice: once saving everything it prints (messages and errors, in order) in nightly.log, once saving only the errors in nightly.err.",
@@ -367,6 +367,15 @@ STORY = {
 # What has to be done, short and without telling HOW (the commands are on the card, `hint` helps when stuck).
 # Replaces the paragraphs after the story. Keep literal values (hosts, ports, file names): variants.py swaps them by seed.
 TASK = {
+    "ATL-101": ["Start with welcome.txt in your home folder: it points to the project docs. Find the port the app uses locally."],
+    "ATL-102": ["Project: ~/atlas. Each environment has its own config file. There is also an old COMPASS config folder: the "
+                "README says whether it is still valid."],
+    "ATL-103": ["Project: ~/atlas. Some of its files are hidden (the one in your home folder is the OLD one). One hidden file "
+                "points to the one that holds the settings: in it find DB_NAME=... and submit only the value after the = sign."],
+    "ATL-104": ["~/atlas/app/features already exists and is empty. Build the launch_date module inside it, exactly as "
+                "the tree below shows. Do not create atlas, app or features again."],
+    "ATL-108": ["Project: ~/atlas. Several files have 'gate' in their name: code, an old copy, a test and a template. Only the "
+                "one in app/workflow (not in old/) is active."],
     "ATL-105": ["When you are done: ~/backup holds a copy of each of the 3 files in ~/atlas/config (the originals stay), "
                 "and ~/atlas/migrations/draft.py has the new name 0040_add_trademark_bu.py (same folder, same content)."],
     "ATL-106": ["Remove from ~/atlas every compiled file ending in .pyc (only those directly in that folder) and the whole "
@@ -380,10 +389,10 @@ TASK = {
     "ATL-114": ["migrations_list.txt has one migration per line: <number> <name>. Find the revision number that is used twice."],
     "ATL-115": ["access.log has today's API traffic. Line format: <ip> <method> <path> <status> <time>. Find the endpoint with the most HTTP 500 answers. "
                 "The busiest endpoint overall is the health check: that is not what we are after."],
-    "ATL-116": ["Run the pre-deploy script deploy.sh and keep its output in a file called deploy_check.log. "
+    "ATL-116": ["Run the pre-deploy script deploy.sh and keep its output in a file called deploy_check.log (in your home folder, next to deploy.sh). "
                 "Check what the script does before you run it."],
-    "ATL-117": ["tickets_export.csv comes from a Windows laptop: an invisible extra character ends every line: (carriage return), which is why "
-                "searching for open gives 0. Make clean.csv: the same lines without that character. Then give the number "
+    "ATL-117": ["tickets_export.csv comes from a Windows laptop: an invisible extra character, a carriage return (\\r), ends every line, which is why "
+                "searching for open gives 0. Make clean.csv in your home folder: the same lines without that character. Then give the number "
                 "of tickets whose status (last column) is open."],
     "ATL-118": ["Compare atlas/config/tst.py and atlas/config/prd.py. They should differ in only 3 settings: the database host, the database name and DEBUG. Find out "
                 "which other setting differs and what value PRD has for it."],
@@ -404,7 +413,7 @@ TASK = {
     "ATL-126": ["Get an API access token from the token endpoint: http://atlas-api/token. The server tells you what it needs: "
                 "read its replies."],
     "ATL-127": ["The projects endpoint is protected. Read what the server asks for and find the stage of project NPI-042."],
-    "ATL-128": ["Save the list from http://atlas-api/api/users (one JSON user per line) as users.json, then count the real "
+    "ATL-128": ["Save the list from http://atlas-api/api/users (one JSON user per line) as users.json in your home folder, then count the real "
                 "admins. A pending 'admin-request' is not an admin yet."],
     "ATL-129": ["Today is 2026-11-12. Count the ERROR lines in today's log of atlas-db-02. Logs are in ~/incident, one folder "
                 "per day; other days do not count."],
@@ -432,17 +441,83 @@ TASK = {
     "ATL-140": ["Under ~/data there are four folders. Find which one really uses the most disk space (not necessarily the one "
                 "with most files) and how much it uses, in KB."],
     "ATL-142": ["Write a script check_hosts.sh that prints, for every name in hosts.txt, NAME up or NAME down (one line per "
-                "server, same order). Up means the server answers a ping. Run it and save its output in report.txt."],
+                "server, same order). Up means the server answers a ping. Run it and save its output in report.txt, also in your home folder."],
     "ATL-143": ["Every .log file in ~/logs bigger than 1 KiB must end up in one compressed archive, ~/logs-archive.tar.gz, and "
                 "no longer be in ~/logs. Smaller logs stay. The archive holds only the big logs."],
-    "ATL-144": ["The folder current is a symbolic link to one release in ~/releases. Find out which release it serves now, "
+    "ATL-144": ["~/current is a symbolic link to one release in ~/releases. Find out which release it serves now, "
                 "then make it serve v1.9.0."],
     "ATL-145": ["Read nightly.sh, then run it twice. First time: everything it prints, normal messages and errors, in order, "
-                "goes into nightly.log. Second time: only the error messages go into nightly.err."],
-    "ATL-146": ["The column does not exist yet. Find the template of the form and the next free migration number, then "
-                "create the migration."],
+                "goes into nightly.log. Second time: only the error messages go into nightly.err. Both files go in your home folder, next to nightly.sh."],
+    "ATL-146": ["The column does not exist yet. The form templates are somewhere in ~/atlas/app/templates and the migrations are in "
+                "~/atlas/migrations. Find the template of the form and the next free migration number, then create the new "
+                "migration file in ~/atlas/migrations: its name is <NUMBER>_add_launch_date.py and it holds exactly one line: "
+                "add_column('request', 'launch_date')"],
+    "ATL-150": ["The incidents endpoint http://atlas-api/api/incidents lists all Atlas incidents (it needs your token). Find the "
+                "critical incident that is still open, then find in its server's log when the first ERROR happened today. Server "
+                "logs are in ~/incident/<year>/<month>/<day>/<server>.log and today is 2026-11-12. Write postmortem.txt in your "
+                "home folder, as the steps below say."],
     "ATL-149": ["sprint.csv has every ticket of the sprint: ticket,component,points. Answer the questions and create "
-                "workflow.csv with only the lines of the workflow component ('workflow-ui' is a different component)."],
+                "workflow.csv (in your home folder, next to sprint.csv) with only the lines of the workflow component ('workflow-ui' is a different component)."],
+}
+
+
+# ticket -> what your home folder must look like when you are done: (path from ~, note). The card draws it as a tree
+# from ~, marks folders that already exist, so nobody has to guess WHERE to create things. Never put an answer here.
+RESULT = {
+    "ATL-104": [("atlas/app/features/launch_date/", "NEW folder"),
+                ("atlas/app/features/launch_date/__init__.py", "NEW empty file"),
+                ("atlas/app/features/launch_date/routes.py", "NEW empty file"),
+                ("atlas/app/features/launch_date/templates/", "NEW empty folder"),
+                ("atlas/app/features/launch_date/README.md", "NEW file, text: Launch date field")],
+    "ATL-105": [("atlas/config/", "keep the 3 files here"),
+                ("atlas/migrations/draft.py", "GONE: renamed (mv) to the name below"),
+                ("atlas/migrations/0040_add_trademark_bu.py", "NEW name of draft.py, same content"),
+                ("backup/dev.py", "NEW copy of atlas/config/dev.py"),
+                ("backup/prd.py", "NEW copy of atlas/config/prd.py"),
+                ("backup/tst.py", "NEW copy of atlas/config/tst.py")],
+    "VLT-01": [("loot/", "NEW folder"), ("loot/plans/", "NEW folder"),
+               ("loot/plans/floor-2.txt", "NEW: a copy of plans.txt (find it in ~/vault), renamed")],
+    "ATL-106": [("atlas/*.pyc", "DELETE every .pyc file directly in atlas"),
+                ("atlas/__pycache__/", "DELETE this whole folder")],
+    "ATL-107": [("atlas/.gitignore", "NEW file, 3 lines: __pycache__/  *.pyc  .env"),
+                ("atlas/CHANGELOG.md", "CHANGED: one new line at the end")],
+    "VLT-02": [("signals/", "every *.bak file inside, in any subfolder: DELETE")],
+    "ATL-116": [("deploy.sh", "CHANGED: made executable, then run"),
+                ("deploy_check.log", "NEW: what deploy.sh printed")],
+    "ATL-117": [("tickets_export.csv", "stays as it is"),
+                ("clean.csv", "NEW: the same lines without the \\r")],
+    "VLT-04": [("roster.csv", "stays as it is"),
+               ("clean.csv", "NEW: roster.csv without the \\r, lisbon changed to oslo")],
+    "ATL-119": [("atlas/config/prd.py", "do not touch"),
+                ("atlas/config/tst.py", "CHANGED: atlas-db-02 becomes atlas-db-new (2 lines)"),
+                ("atlas/config/tst.py.bak", "NEW: copy of tst.py BEFORE the change")],
+    "ATL-122": [("build/", "every *.tmp file inside, in any subfolder: DELETE")],
+    "ATL-125": [("prd_disk.txt", "NEW: the df -h output of atlas-prd")],
+    "ATL-128": [("users.json", "NEW: the user list from the API")],
+    "ATL-130": [("atlas/.venv/", "NEW virtual environment")],
+    "VLT-06": [("agents.json", "NEW: the user list from the API")],
+    "ATL-133": [("atlas/migrations/0042_add_launch_date.py", "NEW, on branch feature/launch-date, committed")],
+    "ATL-136": [("atlas/.env", "CHANGED permissions: 600"),
+                ("atlas/config/prd.py", "CHANGED permissions: 644"),
+                ("atlas/scripts/deploy.sh", "CHANGED permissions: 750")],
+    "ATL-138": [("backups/config-backup.tar.gz", "NEW archive of atlas/config"),
+                ("restore/atlas/config/tst.py", "NEW: only this file, taken out of the archive")],
+    "ATL-142": [("hosts.txt", "the servers to check"),
+                ("check_hosts.sh", "NEW script, executable"),
+                ("report.txt", "NEW: what check_hosts.sh printed")],
+    "ATL-143": [("logs/", "the .log files bigger than 1 KiB: DELETE (small ones stay)"),
+                ("logs-archive.tar.gz", "NEW archive with only the big logs")],
+    "ATL-144": [("current", "CHANGED: link pointing to releases/v1.9.0")],
+    "ATL-145": [("nightly.log", "NEW: everything, messages and errors, in order"),
+                ("nightly.err", "NEW: only the error messages")],
+    "VLT-08": [("out/cargo.tar.gz", "NEW archive of the biggest folder in ~/cargo")],
+    "VLT-09": [("front", "CHANGED: link pointing to releases/v2.0.0"),
+               ("sweep.err", "NEW: only the error of sweep.sh")],
+    "ATL-146": [("atlas/migrations/<NUMBER>_add_launch_date.py", "NEW, one line")],
+    "ATL-149": [("workflow.csv", "NEW: only the workflow lines of sprint.csv")],
+    "ATL-150": [("postmortem.txt", "NEW, exactly 3 lines")],
+    "VLT-10": [("exit.tar.gz", "NEW archive of the whole ~/core folder"),
+               ("report.txt", "NEW, exactly 2 lines")],
 }
 
 
@@ -458,6 +533,7 @@ def apply(levels):
         if lv["ticket"] in TODO:
             lv["pip"][1] = TODO[lv["ticket"]]
         lv["wrong"] = WRONG.get(lv["ticket"], "")
+        lv["result"] = list(RESULT.get(lv["ticket"], []))
         first = STORY.get(lv["ticket"], first)
         lv["brief"] = [first] + list(TASK.get(lv["ticket"]) or lv["brief"][1:])
         lv["phase"] = PHASE.get(lv["module"], lv["module"])

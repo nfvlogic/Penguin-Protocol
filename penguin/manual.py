@@ -164,7 +164,7 @@ MAN = {
     "submit": ("[practice] send the answer of the current ticket", "submit ANSWER", []),
     "check": ("[practice] show the requirements of the current ticket", "check", []),
     "hint": ("[practice] get a hint (type it again for more)", "hint", []),
-    "task": ("[practice] reminder of the current ticket", "task | task full | task N", []),
+    "task": ("[practice] show the whole briefing of the current mission again", "task | task N", []),
     "tasks": ("[practice] list all tickets and their status", "tasks", []),
     "password": ("[practice] show the password of the current level (to continue on another computer)", "password", []),
     "clearance": ("[practice] same as password", "clearance", []),
@@ -260,7 +260,7 @@ SHELL      a | b     output of a becomes input of b        cmd > file   save out
            a || b    run b only if a failed                cmd 2> file  save error messages   cmd 2>&1  errors join the output
            a ; b     run both                              echo $?      exit status of last command
            "quotes" keep spaces and stop * from expanding  # comment
-TICKETS    task  task full  tasks  task N  level N  unlock CODE  password  newgame [+]  mode  hint  check  submit ANSWER  reset  save  tips on|off  exit
+TICKETS    task  tasks  task N  level N  unlock CODE  password  newgame [+]  mode  hint  check  submit ANSWER  reset  save  tips on|off  exit
 MORE       man CMD explains a command and its options. Arrow up repeats commands. Scroll up for history.
 NOTE       Like real Linux, everything is case-sensitive: File.txt and file.txt are different files."""
 

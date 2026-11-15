@@ -172,10 +172,77 @@ class TicketCommands:
             return False
 
     # ---------------------------------------------------------- the ticket card
+    def where_text(self, lv):
+        """Where things are and where new files go: said on every card, so nobody has to guess."""
+        names = sorted({rel.strip("/").split("/")[0] + ("/" if "/" in rel.strip("/") or rel.endswith("/") else "")
+                        for rel in lv["files"]})
+        shown = [n for n in names if not n.startswith(".")]
+        hidden = len(shown) < len(names)
+        text = "You start in ~ (your home folder, /home/analyst). Paths in this briefing start there."
+        if shown:
+            text += " In it: " + "  ".join(shown) + (" + hidden files." if hidden else ".")
+        return text
+
+    def requirements(self, lv, w):
+        """The checklist of a mission that closes by itself, with the real paths."""
+        rows = [c("1;33", " REQUIREMENTS (check shows them)")]
+        for text, ok in self.progress():
+            mark = c("32", "[x]") if ok else "[ ]"
+            wrapped = textwrap.wrap(text, max(20, w - 8), break_long_words=False, break_on_hyphens=False)
+            rows += ["   " + mark + " " + wrapped[0]] + ["       " + r for r in wrapped[1:]]
+        return rows
+
+    def result_tree(self, lv, w):
+        """WHEN YOU ARE DONE: the end state drawn as a tree from ~, so it is clear WHERE everything goes."""
+        if not lv.get("result"):
+            return []
+        notes = {p.rstrip("/"): note for p, note in lv["result"]}
+        folders = {p.rstrip("/") for p, _ in lv["result"] if p.endswith("/")}
+        paths = []                                    # in the order they are listed
+        for p, _ in lv["result"]:
+            parts = p.rstrip("/").split("/")
+            for k in range(1, len(parts) + 1):
+                if "/".join(parts[:k]) not in paths:
+                    paths.append("/".join(parts[:k]))
+                if k < len(parts):
+                    folders.add("/".join(parts[:k]))
+        have = {f.rstrip("/") for f in lv["files"]}
+        def exists(p):
+            return p in have or any(f.startswith(p + "/") for f in have)
+        rows = [c("1;33", " WHEN YOU ARE DONE (your home folder):"), "   ~/"]
+        def walk(parent, prefix):
+            kids = [p for p in paths if "/" in p and p.rsplit("/", 1)[0] == parent] if parent else \
+                   [p for p in paths if "/" not in p]
+            for i, p in enumerate(kids):
+                last = i == len(kids) - 1
+                name = p.rsplit("/", 1)[-1] + ("/" if p in folders else "")
+                note = notes.get(p) or ("(already there)" if exists(p) else "")
+                if note and p not in notes:
+                    note = c("90", note)
+                elif note:
+                    note = c("1;32", note) if note.startswith("NEW") else c("1;33", note)
+                branch = "   " + prefix + ("└── " if last else "├── ")
+                line = branch + name
+                if note and vlen(line) + 2 + vlen(note) <= w:
+                    rows.append(line + "  " + note)
+                else:
+                    rows.append(line)
+                    if note:
+                        pad = "   " + prefix + ("    " if last else "│   ") + "  "
+                        plain = re.sub(r"\x1b\[[0-9;]*m", "", note)
+                        col = "1;32" if plain.startswith("NEW") else ("90" if plain == "(already there)" else "1;33")
+                        rows.extend(pad + c(col, t) for t in textwrap.wrap(plain, max(16, w - vlen(pad))))
+                walk(p, prefix + ("    " if last else "│   "))
+        walk("", "")
+        return rows
+
     def card_lines(self, w, two):
         lv, n = self.ticket(), self.level
-        rule = c("90", "─" * w)
+        boss = lv["module"] == "Vault"
+        rule = c("33", "═" * w) if boss else c("90", "─" * w)
         left_title, right_title = f" {lv['ticket']}  Operation {lv['op']}", f"Threat: {lv['threat']} "
+        if boss:
+            left_title, right_title = f" ◆ VAULT {int(lv['ticket'][4:])} · {lv['op']}", f"BOSS  {n}/{TOTAL} "
         gap = w - len(left_title) - len(right_title)
         if gap >= 1:
             head = [c("1;97", left_title) + " " * gap + c(PRIO_COLOR.get(lv["prio"], "37"), right_title)]
@@ -194,8 +261,10 @@ class TicketCommands:
         lines = [rule] + head + [c("90", r) for r in rows] + [rule]
         if self.expert:   # the briefing and nothing else
             body = [c("1;33", " BRIEFING")]
-            for para in lv["brief"]:
+            for para in lv["brief"] + [self.where_text(lv)]:
                 body += [" " + t for t in wrap_para(para, w - 2)] + [""]
+            if lv.get("result"):
+                body += self.result_tree(lv, w) + [""]
             if lv["parts"]:
                 body.append(c("1;33", " STEPS"))
                 for k, (question, _) in enumerate(lv["parts"]):
@@ -203,6 +272,8 @@ class TicketCommands:
                     wrapped = textwrap.wrap(f"{k + 1}. {question}", w - 8)
                     body += [f" {mark} {wrapped[0]}"] + ["     " + t for t in wrapped[1:]]
                 body.append("")
+            if lv["checks"] and not lv["parts"]:
+                body += self.requirements(lv, w) + [""]
             body += [c("1;33", " MISSION COMPLETE WHEN")] + [" " + t for t in textwrap.wrap(lv["done"], w - 2)]
             return lines + body + [rule]
 
@@ -210,8 +281,10 @@ class TicketCommands:
 
         def build(lw, rw):
             left = [c("1;33", " BRIEFING")]
-            for para in lv["brief"]:
+            for para in lv["brief"] + [self.where_text(lv)]:
                 left += [" " + s for s in wrap_para(para, lw - 1)] + [""]
+            if lv.get("result"):
+                left += self.result_tree(lv, lw) + [""]
             if lv["parts"]:
                 left.append(c("1;33", " STEPS"))
                 for k, (question, _) in enumerate(lv["parts"]):
@@ -219,6 +292,8 @@ class TicketCommands:
                     wrapped = textwrap.wrap(f"{k + 1}. {question}", lw - 6)
                     left += [f" {mark} {wrapped[0]}"] + ["     " + s for s in wrapped[1:]]
                 left.append("")
+            if lv["checks"] and not lv["parts"]:
+                left += self.requirements(lv, lw) + [""]
             left += [c("1;33", " MISSION COMPLETE WHEN")] + [" " + s for s in textwrap.wrap(lv["done"], lw - 1)]
             hint = self.finish_hint()
             if hint:
@@ -258,73 +333,11 @@ class TicketCommands:
             return "Found the answer? Type:  submit ANSWER"
         return "" if "closes by itself" in lv["done"].lower() else "This one closes by itself. Type  check  to see what is missing."
 
-    def pip_card(self, w):
-        """The mission as Pip tells it: who sent you, what to do, which commands help. Nothing more."""
-        lv, n = self.ticket(), self.level
-        boss = lv["module"] == "Vault"
-        rule = c("33", "═" * w) if boss else c("90", "─" * w)
-        if boss:
-            title, count = f" ◆ VAULT {int(lv['ticket'][4:])} · {lv['op']}", f"BOSS  {n}/{TOTAL} "
-        else:
-            title, count = f" {lv['ticket']}  Operation {lv['op']}", f"{n}/{TOTAL} "
-        gap = w - len(title) - len(count)
-        lines = ["", rule, c("1;33" if boss else "1;97", title) + (" " * gap + c("1;33" if boss else "90", count) if gap >= 1 else "")]
-        hook, todo = lv["pip"]
-        lines.append(say("vault" if boss else "think", [("33", hook), todo], w))   # comes with an empty line above and below
-        if lv["parts"]:
-            k = min(self.part, len(lv["parts"]) - 1)
-            label, goal = f"STEP {k + 1}/{len(lv['parts'])}", lv["parts"][k][0]
-        else:
-            goal = lv["done"]
-            goal = goal[4].upper() + goal[5:] if goal.startswith("You ") else goal
-            label = "GOAL"
-        goal = re.sub(r"\s*\(?(closes|completes) by itself.*$", "", goal, flags=re.I) or goal   # said once, below
-        pad = max(len(label), 4) + 2
-        if lv["checks"] and not lv["parts"]:      # say exactly what has to be true, as a checklist
-            lines.append(c("1;33", " TO DO"))
-            for text, ok in self.progress():
-                mark = c("32", "[x]") if ok else "[ ]"
-                rows = textwrap.wrap(text, max(20, w - 8))
-                lines += ["   " + mark + " " + rows[0]] + ["       " + r for r in rows[1:]]
-        else:
-            for i, row in enumerate(textwrap.wrap(goal, max(20, w - pad - 2))):
-                lines.append(" " + (c("1;33", label.ljust(pad)) if i == 0 else " " * pad) + row)
-        tools = [t for t in lv["cmds"] if t[0] not in ("submit ANSWER", "check")]
-        if tools:
-            lines.append(c("1;33", " TOOLS"))
-            col = min(max(len(s) for s, _, _ in tools) + 2, 22)
-            seen = {s for lvl in self.levels[:n - 1] for s, _, _ in lvl["cmds"]}
-            for syntax, expl, example in tools:
-                text = (expl if w < 70 else f"{expl} (e.g. {example})")      # a phone in portrait: meaning only
-                new = syntax not in seen and n > 1 and not boss     # a vault only combines what you know
-                text = ("new " if new else "") + text
-                tint = lambda r, first: c("1;33", "new ") + c("90", r[4:]) if first and new else c("90", r)
-                if len(syntax) + 2 <= col and w - col - 3 >= 34:     # side by side
-                    rows = textwrap.wrap(text, w - col - 3)
-                    lines.append("   " + c("32", syntax.ljust(col)) + tint(rows[0], True))
-                    lines += ["   " + " " * col + tint(r, False) for r in rows[1:]]
-                else:                                                 # narrow screen: explanation underneath
-                    lines += ["   " + c("32", r) for r in textwrap.wrap(syntax, w - 4, break_on_hyphens=False)]
-                    lines += ["     " + tint(r, i == 0) for i, r in enumerate(textwrap.wrap(text, w - 6))]
-        done = "Found it? submit ANSWER" if self.finish_hint().startswith("Found") else "Closes by itself: check"
-        foot, row = [], ""
-        for part in (done, "Stuck? hint", "Briefing: task full"):    # never split one tip over two lines
-            if row and len(row) + 4 + len(part) > w - 1:
-                foot.append(row)
-                row = ""
-            row += ("    " if row else "") + part
-        lines += [c("90", " " + r) for r in foot + [row]]
-        lines.append(rule)
-        return "\n".join(lines) + "\n"
-
-    def card(self, full=False):
+    def card(self):
         w = self.width()
-        if not (full or self.expert):
-            self.out(self.pip_card(w))
-            return
-        if not self.expert:     # Pip is with you on the full briefing too
+        if not self.expert:     # Pip opens the briefing with one line
             lv = self.ticket()
-            self.out(say("vault" if lv["module"] == "Vault" else "think", [("33", lv["pip"][0]), lv["pip"][1]], w))
+            self.out(say("vault" if lv["module"] == "Vault" else "think", [("33", lv["pip"][0])], w))
         lines = [""] + self.card_lines(w, w >= 70)
         footer = (" New Game+: only the problem is shown.   hint (one)  man  help"
                   if self.expert else
@@ -333,26 +346,6 @@ class TicketCommands:
         lines += [c("90", row) for row in ([" " + r for r in textwrap.wrap(footer.strip(), w - 2, subsequent_indent="  ")] if vlen(footer) > w else [footer])]
         lines += [""]
         self.out("\n".join(lines))
-
-    def summary(self):
-        lv, w = self.ticket(), self.width()
-        out = [c("1;97", f"{lv['ticket']}  Operation {lv['op']}") + c("90", f"   (threat: {lv['threat']}, file {self.level} of {TOTAL})")]
-        if lv["parts"]:
-            for k, (q, _) in enumerate(lv["parts"]):
-                mark = "[x]" if k < self.part else ("[>]" if k == self.part else "[ ]")
-                wrapped = textwrap.wrap(f"{mark} {q}", w - 2)
-                out += ["  " + wrapped[0]] + ["      " + x for x in wrapped[1:]]
-        else:
-            out += ["  " + x for x in textwrap.wrap("Goal: " + lv["done"], w - 2)]
-        rows, cur = [], "  Commands: "
-        for syntax, _, _ in lv["cmds"]:  # never split one command over two lines
-            if len(cur) + len(syntax) + 3 > w and cur.strip() != "Commands:":
-                rows.append(cur.rstrip())
-                cur = " " * 12
-            cur += syntax + "   "
-        out += [c("32", r) for r in rows + [cur.rstrip()]]
-        out.append(c("90", "  Full briefing: task full    Hint: hint"))
-        return "\n".join(out)
 
     # ---------------------------------------------------------- practice commands
     def cmd_submit(self, args, stdin):
@@ -452,10 +445,8 @@ class TicketCommands:
         return "\n".join(rows)
 
     def cmd_task(self, args, stdin):
-        if not args:
-            return self.summary()
-        if args[0] in ("full", "card"):
-            self.card(full=True)
+        if not args:            # the whole briefing again
+            self.card()
             return ""
         if not args[0].isdigit() or not 1 <= int(args[0]) <= TOTAL:
             raise ShellError(f"task: which number (1-{TOTAL})?", tip="example: task 1")

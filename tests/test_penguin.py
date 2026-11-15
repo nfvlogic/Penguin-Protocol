@@ -829,7 +829,7 @@ class ModesAndManuals(Short):
         out, data = run("newgame\ny\n", state=data)
         self.assertFalse(data["expert"])
         self.assertTrue(data["plus"])                                      # unlocked for good
-        self.assertIn("GOAL", out.split("Start a new game?")[1])               # back to the normal card
+        self.assertIn("MISSION COMPLETE WHEN", out.split("Start a new game?")[1])               # back to the normal card
 
     def test_mode_cannot_be_switched(self):
         out, _ = run("mode expert\nmode\n")
@@ -896,7 +896,7 @@ class SaveAndResume(Short):
         cmds = "".join(f"task {n}\ntask\nhint\nhint\nhint\ncheck\nls -a\n" for n in range(1, TOTAL + 1))
         out, _ = run(cmds, state={"ticket": LEVELS[0]["ticket"], "best_ticket": LEVELS[-1]["ticket"]})
         for lv in LEVELS:
-            self.assertIn(lv["ticket"], out)
+            self.assertIn(lv["op"], out)            # task shows the card again
         self.assertEqual(out.count("hint 3/3"), TOTAL)
         self.assertNotIn("internal error", out)
 

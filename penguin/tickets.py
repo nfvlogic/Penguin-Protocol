@@ -111,8 +111,8 @@ LEVELS = [
           "            routes.py       (empty)\n"
           "            templates/      (empty folder)\n"
           "            README.md       (text: Launch date field)",
-          "Note: some of these folders do not exist yet, and a folder cannot be created inside one that is missing, "
-          "unless you ask for the parents too."],
+          "The folder ~/atlas/app/features already exists and is empty. Everything inside it is yours to create "
+          "(launch_date and templates do not exist yet): do not create atlas, app or features again."],
          "The structure exists. Closes by itself (type check).",
          [CD, ("mkdir -p A/B", "make a folder and any missing parent folders", "mkdir -p reports/2026/q4"),
           ("touch FILE...", "create one or more empty files", "touch a.txt b.txt"),
@@ -120,8 +120,8 @@ LEVELS = [
          {"atlas/app/__init__.py": "", "atlas/app/features/": ""},
          checks=[("launch_date/__init__.py exists", home_file("atlas/app/features/launch_date/__init__.py")),
                  ("launch_date/routes.py exists", home_file("atlas/app/features/launch_date/routes.py")),
-                 ("launch_date/templates/ exists", home_dir("atlas/app/features/launch_date/templates")),
-                 ("README.md says: Launch date field",
+                 ("launch_date/templates/ exists (a folder)", home_dir("atlas/app/features/launch_date/templates")),
+                 ("launch_date/README.md says: Launch date field",
                   content("atlas/app/features/launch_date/README.md", ["Launch date field"]))],
          hint="cd atlas/app/features ; mkdir -p launch_date/templates ; touch launch_date/__init__.py "
               "launch_date/routes.py ; echo Launch date field > launch_date/README.md"),

@@ -29,6 +29,7 @@ def swap(lv, old, new):
     lv["done"] = fix(lv["done"])
     lv["pip"] = [fix(t) for t in lv.get("pip", [])]
     lv["wrong"] = fix(lv.get("wrong", ""))
+    lv["result"] = [(fix(a), fix(b)) for a, b in lv.get("result", [])]
     if lv["parts"]:
         lv["parts"] = [(fix(q), fix(g) if not callable(g) else g) for q, g in lv["parts"]]
 

@@ -93,11 +93,8 @@ VAULTS = [
            "leave with you, in your own folder and under a new name.",
            "Step 1: somewhere in ~/vault lie two key cards; the real one is hidden (its name starts with a dot) and the "
            "visible one is expired. Submit the code written on the real card (the text after KEY CARD:).",
-           "Steps 2 and 3: when you are done, your home folder must contain this (the file is a copy of plans.txt, "
-           "which lies somewhere in ~/vault; the original stays where it is):",
-           "    ~/loot/",
-           "        plans/",
-           "            floor-2.txt"],
+           "Steps 2 and 3: copy plans.txt (it lies somewhere in ~/vault; the original stays) into a new folder "
+           "~/loot/plans and rename the copy floor-2.txt, as the tree below shows."],
           "All 3 steps are done.",
           [("ls -a [FOLDER]", "list ALL files, hidden ones (.name) too", "ls -a reports"),
            ("tree FOLDER", "show all folders and files below a folder", "tree projects"),

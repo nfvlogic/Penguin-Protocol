@@ -66,20 +66,39 @@ a **vault**: a boss mission that combines everything you just learned.
 <summary>Plain-text version</summary>
 
 ```text
-──────────────────────────────────────────────────────────────────────────
- ATL-101  Operation Front Door                                       1/60
-
  ▄█▀█▀█▄   Your badge got you in. Prove your cover holds.
- ▀█▀▀▀█▀   Find the port Atlas uses on your machine.
+ ▀█▀▀▀█▀
 
- GOAL  Submit the local port number.
- TOOLS
-   ls [FOLDER]  list the files in a folder (e.g. ls reports)
-   cat FILE     show what is inside a file (e.g. cat notes.md)
-   cd FOLDER    go into a folder; cd .. goes up, cd ~ goes home (e.g. cd
-                projects)
- Found it? submit ANSWER    Stuck? hint    Briefing: task full
 ──────────────────────────────────────────────────────────────────────────
+ ATL-101  Operation Front Door                                Threat: Low
+ Handler: Control   Phase: Infiltration   File 1 of 60
+ Password: PP-01-WYYR-3VU5
+──────────────────────────────────────────────────────────────────────────
+ BRIEFING                          │ TOOLKIT (examples: other files)
+ Control wants proof that your     │ ls [FOLDER]
+ cover holds: run Atlas on your    │   list the files in a folder (e.g. ls
+ own machine.                      │   reports)
+                                   │ cat FILE
+ Start with welcome.txt in your    │   show what is inside a file (e.g.
+ home folder: it points to the     │   cat notes.md)
+ project docs. Find the port the   │ cd FOLDER
+ app uses locally.                 │   go into a folder; cd .. goes up, cd
+                                   │   ~ goes home (e.g. cd projects)
+ You start in ~ (your home folder, │
+  /home/analyst). Paths in this    │
+ briefing start there. In it:      │
+ atlas/  notes.txt  welcome.txt.   │
+                                   │
+ MISSION COMPLETE WHEN             │
+ You submit the local port number. │
+                                   │
+ Found the answer? Type:  submit   │
+ ANSWER                            │
+──────────────────────────────────────────────────────────────────────────
+ Always available: ls cd pwd cat less tree man   Mission: task  check
+   hint  submit  password
+
+Pip: First time? Type  ls  to see what is here.
 
 Pip: First time? Type  ls  to see what is here.
 analyst@penguin:~$ cat welcome.txt
@@ -119,7 +138,7 @@ analyst@penguin:~/atlas$ submit 5050
 | <img src="docs/pip-tip.svg" alt="" width="36"> | **Missions with a story** | Fifty briefings with codenames, handlers and phases, from your first day inside to the final operation. |
 | <img src="docs/pip-wave.svg" alt="" width="36"> | **Pip, your partner** | Explains each mission in plain words, names the trap after a wrong answer, hops at your first pipe, redirect or `grep`, and cheers next to the answer bar. |
 | <img src="docs/pip-key.svg" alt="" width="36"> | **Ten vaults** | After every five missions comes a boss mission with its own gold card, Pip walking in with a golden key, and a bigger celebration when you crack it. |
-| <img src="docs/pip-right.svg" alt="" width="36"> | **Clear cards** | The goal (or a checklist that ticks itself), every tool with its meaning and an example, and new tools marked **new**. The full briefing is one command away: `task full`. |
+| <img src="docs/pip-right.svg" alt="" width="36"> | **Clear cards** | The goal (or a checklist that ticks itself), every tool with its meaning and an example, and new tools marked **new**. The whole briefing is always on the card, with a tree of what your folders must look like when you are done. |
 | <img src="docs/pip-think.svg" alt="" width="36"> | **Guided learning** | Three levels of hints, plus the manual. Wrong answers name the trap you probably fell into. |
 | <img src="docs/pip-blink.svg" alt="" width="36"> | **Runs anywhere** | Terminal on Windows, macOS and Linux, or in the browser as an installable app with its own phone keyboard. |
 | <img src="docs/pip-tip.svg" alt="" width="36"> | **Portable progress** | Every level has a password, so you can continue on any computer. |
@@ -167,7 +186,7 @@ Pushing to `main` publishes it with GitHub Pages (`.github/workflows/pages.yml`)
 ## How to play
 
 Each mission card shows Pip's briefing, the goal (or a checklist that ticks itself), and the tools you will need,
-with an example for each. `task full` shows the full briefing. Answer missions end with `submit`; missions marked
+with an example for each, and a tree of the end result when you have to create files. `task` shows the card again. Answer missions end with `submit`; missions marked
 "closes by itself" finish as soon as everything on the checklist is true (`check` shows it).
 
 ```text
