@@ -74,3 +74,4 @@ body { font:14px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mon
 .vcol { min-width:0; flex:1; }
 .pipbar { flex:none; width:2.6em; height:2.86em; }
 .pipbar canvas { width:100%; height:100%; display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
+#app[data-touch="0"] #keys { display:none; }   /* a computer has Tab, Ctrl+C and the arrows on its own keyboard */

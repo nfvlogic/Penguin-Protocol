@@ -268,9 +268,9 @@ async function answerLog(isSubmit, text) {
     const l = document.createElement("div"), msg = document.createElement("span"), st = document.createElement("span");
     msg.className = "hl"; st.className = "dm"; l.append(msg, st); col.appendChild(l);
     const frames = ["·", "+", "✳", "❄", "✳", "+"];
-    for (let k = 0; k < 6; k++) { msg.textContent = "sending answer to Control ... "; st.textContent = frames[k]; scrollDown(); await nap(70); }
+    for (let k = 0; k < 6; k++) { msg.textContent = "sending answer to Control ... "; st.textContent = frames[k]; scrollDown(); await nap(95); }
     st.textContent = "sent"; st.className = "ok";
-    await nap(100);
+    await nap(160);
   }
   if (m) {
     const l = document.createElement("div"), lbl = document.createElement("span"), res = document.createElement("span");
@@ -279,7 +279,7 @@ async function answerLog(isSubmit, text) {
       lbl.textContent = "verifying " + m[2] + " [" + "#".repeat(k) + "-".repeat(10 - k) + "] " + (k < 10 ? String(k * 10).padStart(3) + "%" : "");
       res.textContent = k < 10 ? "" : "PASSED";
       scrollDown();
-      await nap(k === 10 ? 200 : 60);
+      await nap(k === 10 ? 450 : 105);
     }
     if (typeof Pip === "object") Pip.mount(pipEl, final ? "vaultwin" : "win");
     if (final) l.appendChild(document.createTextNode("  you were never here."));

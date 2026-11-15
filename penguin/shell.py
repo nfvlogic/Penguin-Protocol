@@ -568,7 +568,9 @@ class Shell(ShellCommands, CompoundCommands, FileCommands, TextCommands, SysComm
             else:
                 self.out(c("33", f"New Game+ is locked: finish all {TOTAL} tickets first (or use  newgame +  with its password)."))
         self.start_level(self.level, self.part)
-        if self.part:
+        if self.finished and self.level == TOTAL:
+            self.out(c("1;32", f"You finished all {TOTAL} tickets. Type  newgame +  for a New Game+ with new answers."))
+        elif self.part:
             self.out(c("1;97", f"-> Continuing at step {self.part + 1}"))
         self.save()
         return self.prompt()
