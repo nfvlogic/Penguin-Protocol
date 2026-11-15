@@ -88,8 +88,11 @@ LEVELS = [
           "Somebody started it with an old environment file.",
           "Flask loads settings from hidden files (names that start with a dot) in the project "
           "folder. Find the file that holds the database settings and the correct database "
-          "name. The hidden file in your home folder is the OLD one."],
-         "You submit the correct DB_NAME from the project's settings file.",
+          "name. The hidden file in your home folder is the OLD one.",
+          "How: go into the project folder ~/atlas and list ALL its files with ls -a (a plain ls hides "
+          "names that start with a dot). One hidden file points to the other one that holds the settings. "
+          "Open it with cat and read the line DB_NAME=...  The answer is only the value after the = sign."],
+         "You submit the correct DB_NAME: only the value after the = sign (from the project's settings file, not the old one in your home folder).",
          [("ls -a [FOLDER]", "list ALL files, hidden ones (.name) too", "ls -a reports"), CD, CAT,
           ("cd ~", "go back to your home folder", "cd ~"), SUBMIT],
          {"atlas/.flaskenv": "FLASK_APP=wsgi.py\n# DB settings and secrets are loaded from .env in this folder",
