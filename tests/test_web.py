@@ -86,7 +86,7 @@ class ScriptReadsTheGame(unittest.TestCase):
 
     @classmethod
     def regex(cls, var):
-        m = re.search(r"const %s = /(.+?)/[a-z]*\.(?:exec|test)\(text\)" % var, JS)
+        m = re.search(r"const %s = /(.+?)/[a-z]*\.(?:exec|test)\((?:text|plain)\)" % var, JS)
         assert m, var
         return re.compile(m.group(1))
 
