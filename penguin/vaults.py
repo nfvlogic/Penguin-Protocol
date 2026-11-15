@@ -310,16 +310,16 @@ VAULTS = [
 # The story layer for the vaults (missions.py adds it like for any ticket): (name, first paragraph) and Pip's two lines.
 OPS = {v["ticket"]: (v["name"], v["brief"][0]) for v in VAULTS}
 PIP = {
-    "VLT-01": ("Vault 1. Everything you learned, in one job.", "Find the key card, then take the plans."),
-    "VLT-02": ("Vault 2. The guards love their drills.", "Find the one real alert, then erase the copies."),
-    "VLT-03": ("Vault 3. Follow the money.", "Count the refusals and find who got refused most."),
-    "VLT-04": ("Vault 4. Invisible ink again.", "Clean the roster, count the active, move a cell."),
-    "VLT-05": ("Vault 5. Someone is moving data out.", "Find the dark server, add up the leak, sweep the drop."),
-    "VLT-06": ("Vault 6. The back door is the API.", "Get a token, copy the users, count the approvers."),
-    "VLT-07": ("Vault 7. There is a mole.", "Read the repository, then shut the leak."),
-    "VLT-08": ("Vault 8. The door will not open.", "Find the heaviest crate, fix the door, pack it."),
-    "VLT-09": ("Vault 9. Cover your tracks.", "Count, switch the release, silence the sweep."),
-    "VLT-10": ("The last vault. This is it, partner.", "Find the real key, lock it, take it all, report."),
+    "VLT-01": ("Vault 1. Everything you learned, in one job.", "Find the real key card hidden in the vault and submit its code. Then take the floor plans out: copy them into your own loot folder and give the copy the new name from the briefing."),
+    "VLT-02": ("Vault 2. The guards love their drills.", "Search the relay logs: one ALERT is real, the others are drills. Find its file and its code, then delete every .bak copy in the signals folder, and nothing else."),
+    "VLT-03": ("Vault 3. Follow the money.", "Read the ledger. Count the real DENIED transfers (the DENIED_TEST lines are drills), find the account refused most often, and find the time of the very last transfer."),
+    "VLT-04": ("Vault 4. Invisible ink again.", "Make a clean copy of the roster without the hidden Windows characters, count the agents that are active, and in the clean copy move everybody from lisbon to oslo."),
+    "VLT-05": ("Vault 5. Someone is moving data out.", "Find the server on the watchlist that does not answer, add up the KB the guest laptop sent, and delete every .tmp file below the drop folder, and nothing else."),
+    "VLT-06": ("Vault 6. The back door is the API.", "Get an API token for your user, save the user list from the API as agents.json, and count the users whose role is approver."),
+    "VLT-07": ("Vault 7. There is a mole.", "Find out which branch is checked out and which tracked file has uncommitted changes. Then find the process with exfil in its name and stop it."),
+    "VLT-08": ("Vault 8. The door will not open.", "Find which folder in the cargo hold uses the most space. Find out why the vault-door service is down, fix it and restart it, then pack that heaviest folder into out/cargo.tar.gz."),
+    "VLT-09": ("Vault 9. Cover your tracks.", "Count the accounts with nologin as shell, point the front link to the new release, and run the sweep script so that only its error message is written to sweep.err."),
+    "VLT-10": ("The last vault. This is it, partner.", "Find the real MASTERKEY in the core folder (ignore the .bak copies), lock its file so only you can read and write it, pack the whole core folder into exit.tar.gz, and write the 2-line report."),
 }
 NUDGES = {
     "VLT-01": "Hidden files start with a dot. Then three jobs: a folder, a copy, a new name.",

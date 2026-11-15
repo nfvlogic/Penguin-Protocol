@@ -202,6 +202,62 @@ PIP = {
 }
 
 
+# What Pip tells you to do on the card: a few plain sentences (where to look, what must exist or be handed in at the end).
+# Never a command, never an answer.
+TODO = {
+    "ATL-101": "Start with the welcome file in your home folder: it points to the project documentation. In it, find the port the app uses when you run it locally, and submit that number.",
+    "ATL-102": "Open the project and look at the config of each environment. Find the DB_HOST the TST environment uses today (not the old COMPASS one) and submit it.",
+    "ATL-103": "Go into the project folder and look at ALL its files, including the hidden ones. Find the settings file that holds the right DB_NAME and submit only that name.",
+    "ATL-104": "Create the empty module for the launch date feature inside the project: the folders and files shown in the briefing, with the one line of text in README.md. The mission closes by itself when it all exists.",
+    "ATL-105": "Put a copy of the 3 config files into the backup folder, and give the draft migration its proper new name (same folder, same content). The mission closes by itself when both are done.",
+    "ATL-106": "Remove the compiled .pyc files and the __pycache__ folder from the project, and nothing else. The mission closes by itself when they are gone.",
+    "ATL-107": "Create a .gitignore file in the project with exactly the 3 lines from the briefing, in that order. Then add the new line at the END of CHANGELOG.md without erasing what is there.",
+    "ATL-108": "Several files in the project have 'gate' in their name, but only one is the rules file really in use. Find it, read its rules version and submit it.",
+    "ATL-109": "A developer left a TODO(release-blocker) note somewhere in the application code (not in the docs). Find the file that contains it and submit the file name only.",
+    "ATL-110": "Read app.log and find the request that really fails with HTTP 500. Ignore the lines marked as monitoring tests, and submit the path of the endpoint.",
+    "ATL-111": "deploy.log lists every deployment, the newest at the bottom. Find the version that is deployed on TST now and submit it.",
+    "ATL-112": "Look at test_report.txt and count only the tests that really FAILED. Tests marked XFAILED are known issues and do not count. Submit the number.",
+    "ATL-113": "Count how many Python files in the application code use SECRET_KEY. Files that are not Python code (templates, docs, settings) do not count. Submit the number.",
+    "ATL-114": "Look at migrations_list.txt and find the revision number that two migrations share. Submit that number.",
+    "ATL-115": "Read access.log and find the endpoint that answers with HTTP 500 most often. The health check is busy, but that is not what you are after. Submit its path.",
+    "ATL-116": "Read deploy.sh first so you know what it does, then run it and save everything it prints in deploy_check.log. The mission closes by itself.",
+    "ATL-117": "Make a clean copy of the export called clean.csv without the hidden Windows character at the end of each line. Then count the tickets whose status is open and submit the number.",
+    "ATL-118": "Compare the TST and PRD config files. Besides host, name and DEBUG, one more setting differs. Find its name and the value PRD uses for it.",
+    "ATL-119": "In the TST config the old database server appears in two lines. Make both point to the new server, change nothing else, and keep the original as tst.py.bak. Do not touch the PRD config.",
+    "ATL-120": "traffic.log has the requests of today. Work out how many different status codes there are, how many requests got 404, which IP made most of them, and how much time that IP used in total.",
+    "ATL-121": "costs.csv has the monthly cost per service and environment. Add up the cost of the prd environment, then find the most expensive service over all environments.",
+    "ATL-122": "Delete every file that ends in .tmp anywhere below the build folder. All other files must stay, even ones with tmp in their name. The mission closes by itself.",
+    "ATL-123": "PRD points to a database that stopped answering. Check which of the two replicas answers, look up its IP address in /etc/hosts and submit that address.",
+    "ATL-124": "alerts.log has today's alerts and most are resolved. Find the one that is not, turn its IP into a server name using /etc/hosts, and submit the name.",
+    "ATL-125": "You cannot log in to atlas-prd, but you can ask it single questions. Find which disk is full, save that proof in prd_disk.txt, then find the biggest file in the Atlas log folder.",
+    "ATL-126": "Ask the token endpoint of the API for an access token. Read what the server answers: it tells you what it needs from you. Submit the token.",
+    "ATL-127": "Ask the API about project NPI-042. The endpoint is protected: read what the server asks for, give it, then read the stage and submit it.",
+    "ATL-128": "Save the user list from the API as users.json, then count the users that really are admins. A pending admin request is not an admin yet. Submit the number.",
+    "ATL-129": "Find today's log of the suspect server in the incident folder (one folder per day) and count the ERROR lines in it. Logs of other days do not count.",
+    "ATL-130": "Create a virtual environment called .venv in the project, install the requirements into it, and start the app on the port the README names. The mission closes by itself.",
+    "ATL-131": "Atlas does not start because its environment variables are missing. Find out which ones, set them with the values for local development, and start the app. The mission closes by itself.",
+    "ATL-132": "Inside the project, find out the state of the repository: which branch you are on, which file has uncommitted changes, and the short hash of one commit.",
+    "ATL-133": "Do not work on main. Create the new branch from the briefing, add the migration file with its one line, and commit it with the message the briefing asks for. The mission closes by itself.",
+    "ATL-134": "Review what changed in the project before the pull request. One config file got an accidental change: find it, undo it, and find out which package is staged for requirements.txt.",
+    "ATL-135": "Find the process that uses the most CPU and submit its PID. Then stop it, and check that it is really gone.",
+    "ATL-136": "Three files have the wrong permissions: .env, scripts/deploy.sh and config/prd.py. Give each the permissions the briefing describes. The mission closes by itself.",
+    "ATL-137": "The atlas-api service is in a failed state. Find out which file it cannot read and submit its full path, then fix the cause and start the service again.",
+    "ATL-138": "Put the config folder into a compressed archive in the backups folder, find out how many .py files it holds, and practice restoring one single file into the restore folder.",
+    "ATL-139": "The port Atlas needs is taken. Find which process holds it and submit its PID, then stop that process and start Atlas on the same port.",
+    "ATL-140": "Under the data folder there are four folders. Find which one uses the most disk space and how many KB it uses. The one with the most files is not necessarily the biggest.",
+    "ATL-141": "Look at /etc/passwd: the last field of every line is the login shell. Count the accounts with a real shell like bash, and find the user id of the mysql account.",
+    "ATL-142": "Write a script check_hosts.sh that prints one line per name in hosts.txt: the name and up or down. Make it runnable, run it, and save its output in report.txt.",
+    "ATL-143": "Put every log in the logs folder that is bigger than 1 KiB into one compressed archive, then delete those logs. Smaller logs stay. The mission closes by itself.",
+    "ATL-144": "The folder current is a link to one release. Find out which release it points to now, then make it point to the release the briefing names.",
+    "ATL-145": "Read the nightly script, then run it twice: once saving everything it prints (messages and errors, in order) in nightly.log, once saving only the errors in nightly.err.",
+    "ATL-146": "Find which template renders the request form and the next free migration number. Then create the migration that adds the launch_date column, as described in the briefing.",
+    "ATL-147": "auth.log shows failed logins. Find which account was targeted most, the IP it later logged in from, and which machine in /etc/hosts has that IP.",
+    "ATL-148": "Find which Atlas server is down, which load balancer config uses it as primary, and whether that site's fallback answers. Submit the fallback's IP address.",
+    "ATL-149": "sprint.csv lists the tickets of the sprint. Count the tickets of the workflow component, find the biggest story-point value, and save only the workflow lines in workflow.csv.",
+    "ATL-150": "Ask the incidents endpoint of the API for the incident that is critical and still open. Find the first ERROR of today in its server's log, and write postmortem.txt as the briefing says.",
+}
+
+
 # ticket -> what Pip says after a wrong answer: the trap most beginners fall into on that mission. Never an answer.
 WRONG = {
     "ATL-101": "Old notes lie. The project README says how the app runs today.",
@@ -399,6 +455,8 @@ def apply(levels):
         op, first = OPS[lv["ticket"]]
         lv["op"] = op
         lv["pip"] = list(PIP[lv["ticket"]])
+        if lv["ticket"] in TODO:
+            lv["pip"][1] = TODO[lv["ticket"]]
         lv["wrong"] = WRONG.get(lv["ticket"], "")
         first = STORY.get(lv["ticket"], first)
         lv["brief"] = [first] + list(TASK.get(lv["ticket"]) or lv["brief"][1:])
