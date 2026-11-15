@@ -253,6 +253,61 @@ WRONG = {
 }
 
 
+# The story line of each briefing: one or two short sentences. The facts live in the paragraphs that follow (TASK below).
+STORY = {
+    "ATL-101": "Control wants proof that your cover holds: run Atlas on your own machine.",
+    "ATL-102": "TST is about to move to a new database server. Where does it point today?",
+    "ATL-103": "Atlas dies on start-up with: Unknown database 'compass_dev'. An old environment file is the trap.",
+    "ATL-104": "Your cover story: build the Launch date feature. Start with the empty module.",
+    "ATL-105": "Keep a copy of the evidence before you leave any trace.",
+    "ATL-106": "Your pull request contains compiled files. Wipe the scene.",
+    "ATL-107": "Good agents leave no fingerprints. Make sure it never happens again.",
+    "ATL-108": "Gate approvals do not behave as documented. Which rules are really running?",
+    "ATL-109": "Release v1.9 goes out on Friday. A developer left a TODO(release-blocker) somewhere in the code.",
+    "ATL-110": "Testers get an error page when they create a new request on TST.",
+    "ATL-111": "Which Atlas version is on TST right now? deploy.log has 240 lines, the newest at the bottom; the first line is the previous release.",
+    "ATL-112": "The CI pipeline is red. How many tests really failed?",
+    "ATL-113": "Counter-intel wants to rotate the SECRET_KEY. Who touches it?",
+    "ATL-114": "Alembic refuses to upgrade: two migrations share one revision number.",
+    "ATL-115": "Watchtower is flashing red. Which endpoint is failing?",
+    "ATL-116": "The Committee wants a pre-deploy check before tonight's deployment of v1.9.",
+    "ATL-117": "Invisible ink: a Windows export hides a character in every line.",
+    "ATL-118": "A bug only happens on PRD. Did somebody slip in a change?",
+    "ATL-119": "Move the target without anyone noticing: TST moves to the new database server atlas-db-new.",
+    "ATL-120": "You are not alone in the network: a stranger is probing for missing pages.",
+    "ATL-121": "Follow the money: what does Atlas cost in the cloud?",
+    "ATL-122": "Time to sweep the safe house.",
+    "ATL-123": "The primary database just went dark. Switch Atlas to a replica that is alive.",
+    "ATL-124": "Watchtower triggered a silent alarm.",
+    "ATL-125": "Atlas on atlas-prd stopped writing logs.",
+    "ATL-126": "Power BI wants to read Atlas data through its REST API. Every handshake starts with a token.",
+    "ATL-127": "The Broker needs the status of project NPI-042, but the channel is guarded.",
+    "ATL-128": "Before go-live: how many users hold the keys to the kingdom?",
+    "ATL-129": "Atlas was very slow today. Control suspects atlas-db-02.",
+    "ATL-130": "Your laptop was reinstalled. Build a new safe house.",
+    "ATL-131": "No files, no paper trail: on the servers, settings come from environment variables.",
+    "ATL-132": "A colleague vanished mid-operation. Where does the repository stand?",
+    "ATL-133": "Team rule: never commit straight to main. Work from the shadows.",
+    "ATL-134": "Your SSO branch is almost ready. Review it before you push.",
+    "ATL-135": "Your dev box is crawling: a rogue process is eating the CPU.",
+    "ATL-136": "Counter-intel found the vault doors open: files with the wrong permissions.",
+    "ATL-137": "The atlas-api service will not turn over.",
+    "ATL-138": "Every operative needs an escape plan: back up the configuration.",
+    "ATL-139": "Somebody is squatting in your safe house: the port is already taken.",
+    "ATL-140": "The data disk is almost full: something is swallowing everything.",
+    "ATL-141": "Access review: who on this server can actually log in? Every account is one line of /etc/passwd: name:x:uid:gid:comment:home:shell.",
+    "ATL-142": "Watchtower wants a roll call of a list of servers.",
+    "ATL-143": "Old logs say too much. Make them disappear into an archive.",
+    "ATL-144": "The Courier needs a quiet switch of the live release.",
+    "ATL-145": "nightly.sh mails the team far too much noise.",
+    "ATL-146": "The request form must save a desired launch date, but /requests/new crashes with KeyError: 'launch_date'.",
+    "ATL-147": "You are not the only one trying to get in: many failed logins overnight.",
+    "ATL-148": "The PRE environment went dark, and nobody can test v1.9. The configs in ~/lb/sites say for each part of Atlas which server is 'primary' and which is 'fallback'.",
+    "ATL-149": "Sprint review in one hour. Keep your cover airtight.",
+    "ATL-150": "Final operation: write the post-mortem.",
+}
+
+
 # What has to be done, short and without telling HOW (the commands are on the card, `hint` helps when stuck).
 # Replaces the paragraphs after the story. Keep literal values (hosts, ports, file names): variants.py swaps them by seed.
 TASK = {
@@ -262,19 +317,19 @@ TASK = {
                 "folder atlas/__pycache__. Nothing else may disappear."],
     "ATL-107": ["Create atlas/.gitignore with exactly these 3 lines, in this order: __pycache__/  then  *.pyc  then  .env",
                 "Add this as the new LAST line of atlas/CHANGELOG.md; the lines already there must stay: - Added launch date field (ATL-104)"],
-    "ATL-110": ["Find the real endpoint that fails with HTTP 500 when a request is created. Fake crashes sent by monitoring are "
-                "marked as tests and do not count."],
-    "ATL-112": ["XFAILED means expected to fail (a known issue) and does not count. Count only the tests that really FAILED."],
+    "ATL-110": ["app.log has 160 lines from this morning. Find the real endpoint that fails with HTTP 500. Fake crashes sent by "
+                "monitoring are marked as tests and do not count."],
+    "ATL-112": ["test_report.txt lists 40 tests. XFAILED means expected to fail (a known issue) and does not count. Count only the tests that really FAILED."],
     "ATL-113": ["Count the .py files in atlas/app that mention SECRET_KEY. Templates, docs and settings files do not count."],
-    "ATL-114": ["Find the revision number that is used by two migrations."],
-    "ATL-115": ["Line format: <ip> <method> <path> <status> <time>. Find the endpoint with the most HTTP 500 answers. "
+    "ATL-114": ["migrations_list.txt has one migration per line: <number> <name>. Find the revision number that is used twice."],
+    "ATL-115": ["access.log has today's API traffic. Line format: <ip> <method> <path> <status> <time>. Find the endpoint with the most HTTP 500 answers. "
                 "The busiest endpoint overall is the health check: that is not what we are after."],
     "ATL-116": ["Run the pre-deploy script deploy.sh and keep its output in a file called deploy_check.log. "
                 "Check what the script does before you run it."],
-    "ATL-117": ["The file has Windows line endings: an invisible extra character at the end of every line, which is why "
+    "ATL-117": ["tickets_export.csv comes from a Windows laptop: an invisible extra character ends every line: (carriage return), which is why "
                 "searching for open gives 0. Make clean.csv: the same lines without that character. Then give the number "
                 "of tickets whose status (last column) is open."],
-    "ATL-118": ["TST and PRD should differ in only 3 settings: the database host, the database name and DEBUG. Find out "
+    "ATL-118": ["Compare atlas/config/tst.py and atlas/config/prd.py. They should differ in only 3 settings: the database host, the database name and DEBUG. Find out "
                 "which other setting differs and what value PRD has for it."],
     "ATL-119": ["In atlas/config/tst.py the old server atlas-db-02 appears in TWO lines (host and URL). Both must point to the "
                 "new server atlas-db-new, and nothing else may change. Keep the original as tst.py.bak in the same folder. "
@@ -284,7 +339,8 @@ TASK = {
     "ATL-121": ["costs.csv has one line per service and environment: service,environment,eur (the first line is a header)."],
     "ATL-122": ["Delete every file ending in .tmp anywhere below ~/build. All other files must stay, even ones with tmp in "
                 "their name."],
-    "ATL-123": ["Server names and their IPs are in /etc/hosts. Find out which replica answers and submit its IP address."],
+    "ATL-123": ["PRD points to atlas-db-01, which stopped answering. Two replicas exist: atlas-db-02 and atlas-db-03. Server "
+                "names and their IPs are in /etc/hosts. Find out which replica answers and submit its IP address."],
     "ATL-124": ["alerts.log has today's alerts; most are resolved. One host is still down and its alert only shows an IP. "
                 "Submit the name of that server."],
     "ATL-125": ["You do not log in to atlas-prd; as the user analyst you can only send it one command at a time. "
@@ -344,6 +400,7 @@ def apply(levels):
         lv["op"] = op
         lv["pip"] = list(PIP[lv["ticket"]])
         lv["wrong"] = WRONG.get(lv["ticket"], "")
+        first = STORY.get(lv["ticket"], first)
         lv["brief"] = [first] + list(TASK.get(lv["ticket"]) or lv["brief"][1:])
         lv["phase"] = PHASE.get(lv["module"], lv["module"])
         lv["handler"] = HANDLER.get(lv["from"], lv["from"])

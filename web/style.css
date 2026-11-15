@@ -70,3 +70,7 @@ body { font:14px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mon
 #cur.solid { animation:none; }
 #mirror { position:absolute; visibility:hidden; pointer-events:none; white-space:pre-wrap; word-break:break-all; padding:0; border:0; margin:0; overflow:hidden; }
 @keyframes curblink { 0%,49.9% { opacity:1; } 50%,100% { opacity:0; } }
+.verify.vbox { display:flex; align-items:center; gap:.7em; margin:.3em 0; }
+.vcol { min-width:0; flex:1; }
+.pipbar { flex:none; width:2.6em; height:2.86em; }
+.pipbar canvas { width:100%; height:100%; display:block; image-rendering:pixelated; image-rendering:crisp-edges; }

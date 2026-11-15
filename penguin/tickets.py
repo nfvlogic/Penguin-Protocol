@@ -107,10 +107,10 @@ LEVELS = [
           "When you are done, the folder ~/atlas/app/features must look like this:\n"
           "    features/\n"
           "        launch_date/\n"
-          "            __init__.py     (empty file)\n"
-          "            routes.py       (empty file)\n"
+          "            __init__.py     (empty)\n"
+          "            routes.py       (empty)\n"
           "            templates/      (empty folder)\n"
-          "            README.md       (one line of text: Launch date field)",
+          "            README.md       (text: Launch date field)",
           "Note: some of these folders do not exist yet, and a folder cannot be created inside one that is missing, "
           "unless you ask for the parents too."],
          "The structure exists. Closes by itself (type check).",

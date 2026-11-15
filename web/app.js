@@ -248,14 +248,20 @@ async function replay(parts, cascade, budget = 1000) {
 
 // "sending answer ... sent" then "verifying ATL-101 [##########] PASSED", about 1.5 s in all.
 async function answerLog(isSubmit, text) {
-  const m = /Objective secured: Operation (.+?) \(((?:ATL|VLT)-\d+)\)/.exec(text);
-  const final = /Mission complete: all (\d+) objectives/.test(text);
+  // On a narrow screen the message is wrapped over several lines (with Pip's picture beside it): read it as one line
+  const plain = text.replace(/\x1b\][^\x07]*\x07/g, " ").replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").replace(/\s+/g, " ");
+  const m = /Objective secured: Operation (.+?) \(((?:ATL|VLT)-\d+)\)/.exec(plain);
+  const final = /Mission complete: all (\d+) objectives/.test(plain);
   if (!isSubmit && !m) return;
-  const box = document.createElement("div"); box.className = "verify"; out.appendChild(box);
+  const box = document.createElement("div"); box.className = "verify vbox"; out.appendChild(box);
+  // Pip works next to the progress bar: he thinks while it fills and jumps when the answer is accepted
+  const pipEl = document.createElement("span"), col = document.createElement("div");
+  pipEl.className = "pipbar"; col.className = "vcol"; box.append(pipEl, col);
+  if (typeof Pip === "object") Pip.mount(pipEl, "think");
   animating = true; skip = false;
   if (isSubmit) {
     const l = document.createElement("div"), msg = document.createElement("span"), st = document.createElement("span");
-    msg.className = "hl"; st.className = "dm"; l.append(msg, st); box.appendChild(l);
+    msg.className = "hl"; st.className = "dm"; l.append(msg, st); col.appendChild(l);
     const frames = ["·", "+", "✳", "❄", "✳", "+"];
     for (let k = 0; k < 6; k++) { msg.textContent = "sending answer to Control ... "; st.textContent = frames[k]; scrollDown(); await nap(70); }
     st.textContent = "sent"; st.className = "ok";
@@ -263,13 +269,14 @@ async function answerLog(isSubmit, text) {
   }
   if (m) {
     const l = document.createElement("div"), lbl = document.createElement("span"), res = document.createElement("span");
-    lbl.className = "hl"; res.className = "ok"; l.append(lbl, res); box.appendChild(l);
+    lbl.className = "hl"; res.className = "ok"; l.append(lbl, res); col.appendChild(l);
     for (let k = 0; k <= 10; k++) {
       lbl.textContent = "verifying " + m[2] + " [" + "#".repeat(k) + "-".repeat(10 - k) + "] " + (k < 10 ? String(k * 10).padStart(3) + "%" : "");
       res.textContent = k < 10 ? "" : "PASSED";
       scrollDown();
       await nap(k === 10 ? 200 : 60);
     }
+    if (typeof Pip === "object") Pip.mount(pipEl, final ? "vaultwin" : "win");
     if (final) l.appendChild(document.createTextNode("  you were never here."));
   }
   animating = false;
@@ -325,8 +332,8 @@ async function submit() {
   let next, parts;
   try { next = api.feed(line, cols()); } finally { parts = cap; cap = null; }
   const text = parts.map((p) => p.t).join("");
-  const passed = /Objective secured: Operation/.test(text);
-  if (!REDUCE) await answerLog(/^\s*submit\b/.test(line), text);
+  const passed = /Objective secured: Operation/.test(text.replace(/\x1b\][^\x07]*\x07/g, " ").replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").replace(/\s+/g, " "));
+  await answerLog(/^\s*submit\b/.test(line), text);
   await replay(parts, passed);                         // a new mission cascades in; other output is instant
   showPrompt(next);
   after(next);

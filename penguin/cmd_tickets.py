@@ -17,6 +17,15 @@ from .variants import levels_for
 PRIO_COLOR = {"Critical": "1;31", "High": "33", "Normal": "36"}
 
 
+
+def wrap_para(text, width):
+    """Wrap a paragraph, but keep its own line breaks and indentation (a folder layout must stay a layout)."""
+    rows = []
+    for line in text.split("\n"):
+        rows += textwrap.wrap(line, width, subsequent_indent=" " * (len(line) - len(line.lstrip())) if line[:1] == " " else "",
+                              replace_whitespace=False, drop_whitespace=False) or [""]
+    return rows
+
 class TicketCommands:
     # ---------------------------------------------------------- ticket lifecycle
     def ticket(self):
@@ -186,7 +195,7 @@ class TicketCommands:
         if self.expert:   # the briefing and nothing else
             body = [c("1;33", " BRIEFING")]
             for para in lv["brief"]:
-                body += [" " + t for t in textwrap.wrap(para, w - 2)] + [""]
+                body += [" " + t for t in wrap_para(para, w - 2)] + [""]
             if lv["parts"]:
                 body.append(c("1;33", " STEPS"))
                 for k, (question, _) in enumerate(lv["parts"]):
@@ -202,7 +211,7 @@ class TicketCommands:
         def build(lw, rw):
             left = [c("1;33", " BRIEFING")]
             for para in lv["brief"]:
-                left += [" " + s for s in textwrap.wrap(para, lw - 1)] + [""]
+                left += [" " + s for s in wrap_para(para, lw - 1)] + [""]
             if lv["parts"]:
                 left.append(c("1;33", " STEPS"))
                 for k, (question, _) in enumerate(lv["parts"]):
@@ -313,6 +322,9 @@ class TicketCommands:
         if not (full or self.expert):
             self.out(self.pip_card(w))
             return
+        if not self.expert:     # Pip is with you on the full briefing too
+            lv = self.ticket()
+            self.out(say("vault" if lv["module"] == "Vault" else "think", [("33", lv["pip"][0]), lv["pip"][1]], w))
         lines = [""] + self.card_lines(w, w >= 70)
         footer = (" New Game+: only the problem is shown.   hint (one)  man  help"
                   if self.expert else
